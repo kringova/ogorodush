@@ -1,7 +1,8 @@
 # Справочник по структуре
 
 ```
-CLAUDE.md            правила для агента (Claude Code читает автоматически)
+AGENTS.md            канонические правила для агента (вендор-нейтрально)
+CLAUDE.md            шим @AGENTS.md для Claude Code
 _rules.md            полная методология
 _dashboard.md        Dataview-сводка: проекты, беклог по RICE, канбан
 _templates/
