@@ -16,7 +16,7 @@ projects/
     tasks/
       tasks.md       Dataview-индекс задач проекта
       <имя>.md       задачи
-.claude/skills/
+skills/
   sync/SKILL.md      контекст всех проектов в сессию
   backlog/SKILL.md   завести задачу
   inbox/SKILL.md     разобрать инбокс
