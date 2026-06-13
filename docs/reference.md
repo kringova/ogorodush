@@ -19,8 +19,17 @@ projects/
 skills/
   sync/SKILL.md      контекст всех проектов в сессию
   backlog/SKILL.md   завести задачу
+  close/SKILL.md     закрыть задачу (done + лог); постфактум-задача
+  recap/SKILL.md     итоги за период
   inbox/SKILL.md     разобрать инбокс
-docs/                эта документация
+docs/
+  methodology.md     принципы, проекты, задачи, RICE, жизненный цикл
+  roles.md           роли команды и их включение по RICE
+  workflow.md        жизненный цикл и гейты
+  doc-canon.md       канон документации проекта, карта APC
+  styleguide.md      как писать доку (APC, против воды)
+  reference.md       эта страница — структура и поля
+  skills.md · faq.md · installation.md
 ```
 
 ## Frontmatter задачи
@@ -39,10 +48,13 @@ rice_impact: 3              # 1–5
 rice_confidence: 80         # 50–100
 rice_effort: 0.2            # est_days / 5, минимум 0.1
 summary: "Одна строка для индексов"
+roles: [reviewer, techwriter]  # опц.: роли, выведенные из RICE-порогов (см. roles.md)
 ---
 ```
 
 Разделы тела: «Что нужно сделать», «Почему важно», «Критерии готовности (DoD)», «Пререквизиты», «Вопросы», «Заметки». Семантика каждого — в [methodology.md](methodology.md).
+
+Поле `roles` — какие роли Артели включаются на задаче; выводится из компонентов RICE (пороги — в [roles.md](roles.md) и [workflow.md](workflow.md)).
 
 ## Frontmatter проекта
 
