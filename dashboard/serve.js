@@ -796,7 +796,7 @@ function renderShell(data, page, title, subtitle, content) {
   <h1>${esc(title)}</h1>
   <p class="stats">${subtitle}</p>
   ${content}
-  <p class="hint">Обновляется автоматически каждые 30 c. Данные читаются из markdown при каждом запросе.</p>
+  <p class="hint">Обновляется автоматически каждые 2 минуты. Данные читаются из markdown при каждом запросе.</p>
 </div>
 <script>
   // Авто-обновление, но не пока пользователь печатает в инбоксе.
@@ -807,7 +807,7 @@ function renderShell(data, page, title, subtitle, content) {
     var s=document.querySelector('.search-input');
     if(s&&s===document.activeElement)return;
     location.reload();
-  },30000);
+  },120000);
   function ibSubmit(e){
     e.preventDefault();
     var t=document.getElementById('ibtext'),p=document.getElementById('ibproj'),
