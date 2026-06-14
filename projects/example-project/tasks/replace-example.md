@@ -4,13 +4,16 @@ project: "[[example-project/example-project]]"
 status: todo
 tags: [task]
 created: 2026-06-12
+created_at: 2026-06-12
 updated: 2026-06-12
-est_days: 0.5
+sp: 1
 rice_reach: 1
 rice_impact: 5
 rice_confidence: 100
-rice_effort: 0.1
+rice_effort: 0.2
 summary: "Удалить пример и завести свой первый проект"
+roles: [reviewer]
+model_tier: junior
 ---
 
 ## Что нужно сделать
