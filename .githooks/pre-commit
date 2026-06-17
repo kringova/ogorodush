@@ -3,3 +3,6 @@
 # Установка: git config core.hooksPath .githooks
 # Апрув-сервис (апрув-поверхность адоптера) ставит ARTEL_APPROVE=1, чтобы пройти.
 python3 "$(git rev-parse --show-toplevel)/scripts/check-task-close.py" || exit 1
+# Гейт объёма коммита: ловит git add -A, сметающий несвязанные правки (>=2 проектов / build-артефакты).
+# Намеренный мультипроектный коммит — GIT_SCOPE_OK=1.
+python3 "$(git rev-parse --show-toplevel)/scripts/check-staged-scope.py" || exit 1
