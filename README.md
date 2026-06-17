@@ -85,40 +85,21 @@ Vault — это память, которую агент ведёт сам: ка
 
 Локальный дашборд (`npm run dashboard`, Node 18+, **без `npm install`**) — веб-витрина над тем же markdown-vault: те же файлы открываются и в Obsidian. У дашборда всего **две точки записи** — захват в инбокс и апрув задач `review → done`; всё остальное только читается. Подробнее — [dashboard/README.md](dashboard/README.md).
 
-<table>
-<tr>
-<td width="50%" valign="top" align="center">
-
 **Проекты** — карточки со статусом, прогрессом и топ-задачей по RICE
 
-<img src="docs/assets/showcase-projects.png" alt="Проекты — карточки со статусом, прогрессом и топ-задачей по RICE">
-
-</td>
-<td width="50%" valign="top" align="center">
+![Проекты — карточки со статусом, прогрессом и топ-задачей по RICE](docs/assets/showcase-projects.png)
 
 **Канбан** — задачи всех проектов по статусам, с тикетом, RICE и тегами
 
-<img src="docs/assets/showcase-kanban.png" alt="Канбан — задачи по статусам с RICE и тегами">
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top" align="center">
+![Канбан — задачи по статусам с RICE и тегами](docs/assets/showcase-kanban.png)
 
 **RICE-беклог** — всё, отсортированное по приоритету
 
-<img src="docs/assets/showcase-rice.png" alt="RICE-беклог, отсортированный по приоритету">
-
-</td>
-<td width="50%" valign="top" align="center">
+![RICE-беклог, отсортированный по приоритету](docs/assets/showcase-rice.png)
 
 **Инбокс** — сырые мысли «на потом»; агент превращает их в задачи
 
-<img src="docs/assets/showcase-inbox.png" alt="Инбокс — сырые записи на разбор">
-
-</td>
-</tr>
-</table>
+![Инбокс — сырые записи на разбор](docs/assets/showcase-inbox.png)
 
 > Скриншоты сняты с демонстрационного vault. В шаблоне лежит один пример-проект под удаление.
 
