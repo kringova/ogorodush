@@ -20,13 +20,16 @@ set -eo pipefail
 AGENT_AUTHOR="${AGENT_AUTHOR:-Claude (agent) <agent@llmush>}"
 AGENT_MODEL="${AGENT_MODEL-Claude Opus 4.8 (1M context) <noreply@anthropic.com>}"
 
-human_name="$(git config user.name || true)"
-human_email="$(git config user.email || true)"
+# Человек = эффективная личность коммиттера (git var работает и из git config,
+# и из env GIT_COMMITTER_* — config бывает пуст, а личность приходит из окружения).
+# Формат git var: "Имя <email> <unixtime> <tz>" — отрезаем хвост времени.
+human="$(git var GIT_COMMITTER_IDENT 2>/dev/null | sed -E 's/ [0-9]+ [-+][0-9]+$//')"
 
 # Собираем аргументы трейлеров (bash 3.2-safe: пустой массив разворачиваем через guard)
 trailer_args=()
-if [ -n "$human_name" ] && [ -n "$human_email" ]; then
-  trailer_args+=(--trailer "Co-authored-by: ${human_name} <${human_email}>")
+# человека добавляем, если он определился и это не сам агент-автор
+if [ -n "$human" ] && [ "$human" != "$AGENT_AUTHOR" ]; then
+  trailer_args+=(--trailer "Co-authored-by: ${human}")
 fi
 if [ -n "$AGENT_MODEL" ]; then
   trailer_args+=(--trailer "Co-authored-by: ${AGENT_MODEL}")
