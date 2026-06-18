@@ -1,7 +1,7 @@
 {
   "name": "ogorodush",
-  "version": "1.0.0",
-  "description": "Шаблон vault для ведения проектов и задач в паре с LLM-агентом",
+  "version": "1.1.0",
+  "description": "Огород — рабочая среда для проектов с ИИ-агентом: память в markdown, RICE-беклог, тиринг моделей, без вендор-лока",
   "license": "MIT",
   "type": "module",
   "scripts": {
