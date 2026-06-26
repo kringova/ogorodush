@@ -45,6 +45,11 @@ user_invocable: true
    `ogorod_version` (= `tag_name` последнего GitHub-релиза Огорода без `v`,
    например `"1.1.0"`). По нему `sync` понимает, что вышло обновление. Итог:
    `{ "dashboard": "mini", "ogorod_version": "1.1.0" }`.
+   Туда же — **грядка по умолчанию**: положи в корень vault `bed.json`
+   (`{ "id": "work", "name": "Рабочая", "type": "agent" }`) и добавь в конфиг
+   `"default_bed": "work"`. Vault становится нейрогрядкой по умолчанию (канон —
+   `methodology.md` → «Грядка»); дополнительные грядки появятся под `beds/<slug>/`,
+   корневую не двигаем.
 5. **Настрой выбранный:**
    - **mini:** запуск `npm run dashboard` (или `node dashboard/serve.js --open`). Зависимостей нет.
    - **full:** `cd dashboard-app && npm install`, затем `VAULT_PATH=<корень vault> npm run dev`
@@ -65,6 +70,7 @@ user_invocable: true
 
 - [ ] Выбор дашборда сделан осознанно (показаны оба, объяснён компромисс)
 - [ ] `ogorod.config.json` создан/обновлён с полями `dashboard` и `ogorod_version`
+- [ ] Корневой `bed.json` создан (грядка по умолчанию `work`), `default_bed` в конфиге
 - [ ] Выбранный дашборд настроен и человек знает команду запуска
 - [ ] Сказано, как переключиться позже
 - [ ] Предложен следующий шаг (удалить example, завести проект через charter/onboard)
