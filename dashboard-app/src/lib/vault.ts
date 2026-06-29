@@ -29,6 +29,41 @@ function lastCommitDateForPath(relPath: string): string {
 
 export type TaskStatus = "todo" | "doing" | "review" | "blocked" | "done" | "cancelled";
 
+export interface Recur {
+  freq: "daily" | "weekly" | "monthly" | "yearly";
+  /** Дни недели для weekly-повтора: короткие коды пн вт ср чт пт сб вс. Пустой = любой день. */
+  weekdays: string[];
+  /** Для monthly: "last" | "first" | "<число 1-31>". Пусто = стандартный сдвиг. */
+  monthly: string;
+}
+
+const RECUR_FREQS = ["daily", "weekly", "monthly", "yearly"] as const;
+
+/**
+ * Нормализует raw-значение поля `recur` из YAML-фронтматтера.
+ * Обратная совместимость: строки daily/weekly/monthly/yearly конвертируются в Recur.
+ */
+export function parseRecur(v: unknown): Recur | null {
+  if (!v) return null;
+  if (typeof v === "string") {
+    if ((RECUR_FREQS as readonly string[]).includes(v)) {
+      return { freq: v as Recur["freq"], weekdays: [], monthly: "" };
+    }
+    return null;
+  }
+  if (typeof v === "object" && v !== null && !Array.isArray(v)) {
+    const o = v as Record<string, unknown>;
+    const freq = String(o.freq ?? "");
+    if (!(RECUR_FREQS as readonly string[]).includes(freq)) return null;
+    return {
+      freq: freq as Recur["freq"],
+      weekdays: Array.isArray(o.weekdays) ? o.weekdays.map(String) : [],
+      monthly: String(o.monthly ?? ""),
+    };
+  }
+  return null;
+}
+
 export interface Task {
   id: number; // номер тикета → ARTEL-####
   slug: string; // имя md-файла (для wiki-ссылок и обратной совместимости URL)
@@ -63,6 +98,19 @@ export interface Task {
   createdAt: string;
   /** ISO-метка закрытия (у done/cancelled); пусто у открытых */
   closedAt: string;
+  /** Срок (due) — у ручных задач; пусто у агентских. */
+  due: string;
+  /** Личный приоритет ручной грядки = (Важн × Срочн / Сложн) × (1 + (Интерес−1)/14). null если осей нет. */
+  personalPriority: number | null;
+  /** Оси личного приоритета (ручная грядка); null у агентских. */
+  importance: number | null;
+  urgency: number | null;
+  complexity: number | null;
+  interest: number | null;
+  /** периодичность повтора; null если повтора нет */
+  recur: Recur | null;
+  /** Лог дат выполнений (YYYY-MM-DD) для повторяющихся задач */
+  completedLog: string[];
   /** путь к md-файлу относительно VAULT_PATH (для git-дат) */
   file: string;
   body: string;
@@ -137,6 +185,33 @@ export function computeRice(t: {
   return (t.reach * t.impact * (t.confidence / 100)) / t.effort;
 }
 
+/**
+ * Личный приоритет ручной грядки: (Важность × Срочность / Сложность) × (1 + (Интерес−1)/14).
+ * Оси 1–8, дефолт 4. null, если осей нет (агентская задача) или задача done/cancelled.
+ */
+function computePersonalPriority(
+  data: Record<string, unknown>,
+  status: TaskStatus
+): number | null {
+  const hasAxes =
+    data.importance != null ||
+    data.urgency != null ||
+    data.complexity != null ||
+    data.interest != null;
+  if (!hasAxes) return null;
+  if (status === "done" || status === "cancelled") return null;
+  const axis = (v: unknown) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 4;
+    return Math.min(8, Math.max(1, n));
+  };
+  const importance = axis(data.importance);
+  const urgency = axis(data.urgency);
+  const complexity = axis(data.complexity);
+  const interest = axis(data.interest);
+  return ((importance * urgency) / complexity) * (1 + (interest - 1) / 14);
+}
+
 function readTask(projectSlug: string, filePath: string): Task | null {
   let raw: string;
   try {
@@ -181,6 +256,14 @@ function readTask(projectSlug: string, filePath: string): Task | null {
     updated: asString(data.updated),
     createdAt: asString(data.created_at) || asString(data.created),
     closedAt: asString(data.closed_at),
+    due: asString(data.due),
+    personalPriority: computePersonalPriority(data, status),
+    importance: data.importance != null ? asNum(data.importance) : null,
+    urgency: data.urgency != null ? asNum(data.urgency) : null,
+    complexity: data.complexity != null ? asNum(data.complexity) : null,
+    interest: data.interest != null ? asNum(data.interest) : null,
+    recur: parseRecur(data.recur),
+    completedLog: Array.isArray(data.completed_log) ? data.completed_log.map(String) : [],
     file: path.relative(VAULT_PATH, filePath),
     body: content.trim(),
   };

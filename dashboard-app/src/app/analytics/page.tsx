@@ -4,6 +4,7 @@ import {
   getBurndown,
   type Task,
 } from "@/lib/vault";
+import PersonalBedAnalytics from "@/components/PersonalBedAnalytics";
 import BurndownChart from "@/components/BurndownChart";
 import GradeBadge from "@/components/GradeBadge";
 import CumulativeGradeChart from "@/components/CumulativeGradeChart";
@@ -73,6 +74,33 @@ export default async function AnalyticsPage({
   const activeBed = await resolveActiveBed(sp.bed);
   const tasks = getAllTasks(activeBed.projectsDir);
   const burndown = getBurndown(undefined, activeBed.projectsDir);
+
+  // Ручная грядка: личная аналитика продуктивности.
+  if (activeBed.type === "user") {
+    const personalTasks = tasks.map((t) => ({
+      key: t.key,
+      project: t.project,
+      status: t.status,
+      summary: t.summary,
+      sp: t.sp,
+      createdAt: t.createdAt,
+      closedAt: t.closedAt,
+      due: t.due,
+      personalPriority: t.personalPriority,
+      recurFreq: t.recur ? t.recur.freq : null,
+      completedCount: t.completedLog.length,
+    }));
+    return (
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Аналитика</h1>
+        <p className="mt-1 text-sm text-neutral-500">Личные метрики продуктивности грядки.</p>
+        <p className="mt-1 text-xs text-neutral-400">
+          грядка <span className="font-medium text-neutral-600">{activeBed.name}</span>
+        </p>
+        <PersonalBedAnalytics bedName={activeBed.name} tasks={personalTasks} />
+      </div>
+    );
+  }
 
   // --- Мемоизированный резолвер completedAt по файлу ---
   const completedAtCache = new Map<string, string>();

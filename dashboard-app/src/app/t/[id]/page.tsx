@@ -1,5 +1,5 @@
 import { permanentRedirect, notFound } from "next/navigation";
-import { getTaskById, getProject } from "@/lib/vault";
+import { getAllTasks, getProject } from "@/lib/vault";
 import TaskView from "@/components/TaskView";
 import { resolveActiveBed } from "@/lib/activeBed";
 
@@ -17,11 +17,14 @@ export default async function TaskShortPage({
   const sp = await searchParams;
   const activeBed = await resolveActiveBed(sp.bed);
   const num = parseInt(id.replace(/\D/g, ""), 10);
-  const task = Number.isFinite(num) ? getTaskById(num, activeBed.projectsDir) : null;
+  const all = getAllTasks(activeBed.projectsDir);
+  // Резолв по ключу/slug (ручные задачи — ключ = slug), затем по числовому id (/t/42 → ARTEL-…)
+  let task = all.find((t) => t.key === id || t.slug === id) ?? null;
+  if (!task && Number.isFinite(num)) task = all.find((t) => t.id === num) ?? null;
   if (!task) notFound();
 
-  // канонизируем: /t/42 или иные формы → /t/ARTEL-0042
-  if (id !== task.key) permanentRedirect(`/t/${task.key}`);
+  // канонизируем только агентские (числовой id → /t/ARTEL-0042); ручные остаются на /t/<slug>
+  if (task.id && id !== task.key) permanentRedirect(`/t/${task.key}`);
 
   const project = getProject(task.project, activeBed.projectsDir);
   return <TaskView task={task} project={project} />;

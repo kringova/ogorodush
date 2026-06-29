@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Task, Project } from "@/lib/vault";
 import { firstCommitDate, lastCommitDate } from "@/lib/git";
 import { splitSections, findSection, dodProgress } from "@/lib/markdown";
-import { STATUS_LABEL, STATUS_CLASS, fmtRice, fmtTicket } from "@/lib/ui";
+import { STATUS_LABEL, STATUS_CLASS, fmtRice, fmtTicket, recurSummary } from "@/lib/ui";
 import { effectiveGrade, actualGradeFromCostByModel } from "@/lib/grade";
 import Badge from "@/components/Badge";
 import GradeBadge from "@/components/GradeBadge";
@@ -83,6 +83,11 @@ export default function TaskView({
         </Badge>
         {task.isBug && (
           <Badge className="bg-rose-50 text-rose-600 ring-rose-200">bug</Badge>
+        )}
+        {task.recur && (
+          <Badge className="bg-sky-50 text-sky-700 ring-sky-200">
+            ↻ {recurSummary(task.recur)}
+          </Badge>
         )}
       </div>
 
@@ -234,6 +239,31 @@ export default function TaskView({
           {notes && (
             <Block title="Заметки">
               <Md project={slug}>{notes}</Md>
+            </Block>
+          )}
+          {task.completedLog.length > 0 && (
+            <Block title="История выполнений">
+              <p className="mb-2 text-sm text-neutral-500">
+                Выполнено {task.completedLog.length} раз
+              </p>
+              {task.completedLog.length <= 8 ? (
+                <ul className="space-y-1">
+                  {[...task.completedLog].reverse().map((d, i) => (
+                    <li key={i} className="text-sm text-neutral-600">{d}</li>
+                  ))}
+                </ul>
+              ) : (
+                <details>
+                  <summary className="cursor-pointer text-sm text-neutral-500 hover:text-neutral-700">
+                    Показать все ({task.completedLog.length})
+                  </summary>
+                  <ul className="mt-2 space-y-1">
+                    {[...task.completedLog].reverse().map((d, i) => (
+                      <li key={i} className="text-sm text-neutral-600">{d}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </Block>
           )}
         </div>
