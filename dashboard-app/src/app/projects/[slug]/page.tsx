@@ -11,6 +11,7 @@ import {
 } from "@/lib/ui";
 import Badge from "@/components/Badge";
 import Md from "@/components/Md";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,15 @@ const STATUS_ORDER = ["doing", "todo", "done", "cancelled"];
 
 export default async function ProjectPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ bed?: string }>;
 }) {
   const { slug } = await params;
-  const project = getProject(slug);
+  const sp = await searchParams;
+  const activeBed = await resolveActiveBed(sp.bed);
+  const project = getProject(slug, activeBed.projectsDir);
   if (!project) notFound();
 
   const tasks = [...project.tasks].sort((a, b) => {

@@ -2,19 +2,21 @@ import Link from "next/link";
 import { getProjects, getProject, getRoadmap } from "@/lib/vault";
 import { GanttChart, GanttLegend } from "@/components/GanttChart";
 import Badge from "@/components/Badge";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
 export default async function RoadmapPage({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; bed?: string }>;
 }) {
-  const projects = getProjects();
-  const { project: q } = await searchParams;
+  const { project: q, bed } = await searchParams;
+  const activeBed = await resolveActiveBed(bed);
+  const projects = getProjects(activeBed.projectsDir);
   const slug = q && projects.some((p) => p.slug === q) ? q : projects[0]?.slug;
-  const project = slug ? getProject(slug) : null;
-  const roadmap = slug ? getRoadmap(slug) : [];
+  const project = slug ? getProject(slug, activeBed.projectsDir) : null;
+  const roadmap = slug ? getRoadmap(slug, activeBed.projectsDir) : [];
 
   // doing — активны сейчас, ставим в начало (стартуют сегодня); затем todo по RICE
   const open = (project?.tasks ?? [])

@@ -2,11 +2,18 @@ import Link from "next/link";
 import { getTasksByRice } from "@/lib/vault";
 import { STATUS_CLASS, STATUS_LABEL, fmtRice, fmtTicket } from "@/lib/ui";
 import Badge from "@/components/Badge";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
-export default function RicePage() {
-  const tasks = getTasksByRice();
+export default async function RicePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bed?: string }>;
+}) {
+  const sp = await searchParams;
+  const activeBed = await resolveActiveBed(sp.bed);
+  const tasks = getTasksByRice(activeBed.projectsDir);
   const max = tasks[0]?.rice ?? 1;
 
   return (

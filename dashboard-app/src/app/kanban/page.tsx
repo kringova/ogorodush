@@ -4,17 +4,19 @@ import { buildHaystack } from "@/lib/search";
 import { fmtTicket } from "@/lib/ui";
 import { effectiveGrade } from "@/lib/grade";
 import KanbanFilterBar, { type KanbanTask } from "@/components/KanbanFilterBar";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
 export default async function KanbanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string }>;
+  searchParams: Promise<{ project?: string; bed?: string }>;
 }) {
-  const { project: initialProject = "" } = await searchParams;
-  const projects = getProjects();
-  const allTasks = getAllTasks();
+  const { project: initialProject = "", bed } = await searchParams;
+  const activeBed = await resolveActiveBed(bed);
+  const projects = getProjects(activeBed.projectsDir);
+  const allTasks = getAllTasks(activeBed.projectsDir);
 
   // время последнего коммита по каждому файлу задачи — для честной сортировки «Готово»
   const commitIso = lastCommitIsoMap();

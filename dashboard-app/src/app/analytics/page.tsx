@@ -12,6 +12,7 @@ import TokensByGradeCard, { type TokensDataset } from "@/components/TokensByGrad
 import { gradeOfModel, gradeShareCumulative } from "@/lib/grade";
 import { fmtTicket } from "@/lib/ui";
 import { completedAt, repoFirstCommitDate } from "@/lib/git";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
@@ -63,9 +64,15 @@ function aggregateTokens(taskList: Task[]): TokensDataset {
   return { grades, totalIo };
 }
 
-export default async function AnalyticsPage() {
-  const tasks = getAllTasks();
-  const burndown = getBurndown();
+export default async function AnalyticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bed?: string }>;
+}) {
+  const sp = await searchParams;
+  const activeBed = await resolveActiveBed(sp.bed);
+  const tasks = getAllTasks(activeBed.projectsDir);
+  const burndown = getBurndown(undefined, activeBed.projectsDir);
 
   // --- Мемоизированный резолвер completedAt по файлу ---
   const completedAtCache = new Map<string, string>();

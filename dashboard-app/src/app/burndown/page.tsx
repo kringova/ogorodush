@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getProjects, getBurndown, type BurndownPoint } from "@/lib/vault";
 import BurndownChart from "@/components/BurndownChart";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
@@ -28,14 +29,15 @@ function windowPoints(points: BurndownPoint[], days: number | null) {
 export default async function BurndownPage({
   searchParams,
 }: {
-  searchParams: Promise<{ project?: string; range?: string }>;
+  searchParams: Promise<{ project?: string; range?: string; bed?: string }>;
 }) {
-  const projects = getProjects();
-  const { project, range } = await searchParams;
+  const { project, range, bed } = await searchParams;
+  const activeBed = await resolveActiveBed(bed);
+  const projects = getProjects(activeBed.projectsDir);
   const slug =
     project && projects.some((p) => p.slug === project) ? project : undefined;
   const activeRange = RANGES.find((r) => r.key === range) ?? RANGES[3];
-  const bd = getBurndown(slug);
+  const bd = getBurndown(slug, activeBed.projectsDir);
   const { openNow, doneTotal, total } = bd;
   const points = windowPoints(bd.points, activeRange.days);
   const qp = slug ? `&project=${slug}` : "";

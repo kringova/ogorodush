@@ -1,11 +1,18 @@
 import { getAllTasks } from "@/lib/vault";
 import { fmtTicket } from "@/lib/ui";
 import SearchClient, { type SearchTask } from "@/components/SearchClient";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
-export default function SearchPage() {
-  const tasks: SearchTask[] = getAllTasks().map((t) => {
+export default async function SearchPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bed?: string }>;
+}) {
+  const sp = await searchParams;
+  const activeBed = await resolveActiveBed(sp.bed);
+  const tasks: SearchTask[] = getAllTasks(activeBed.projectsDir).map((t) => {
     const open = t.status === "todo" || t.status === "doing";
     const haystack = [
       fmtTicket(t.id),

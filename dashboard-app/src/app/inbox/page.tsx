@@ -5,13 +5,20 @@ import InboxForm from "@/components/InboxForm";
 import ReviewActions from "@/components/ReviewActions";
 import Badge from "@/components/Badge";
 import ReviewReport from "@/components/ReviewReport";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
-export default function InboxPage() {
-  const items = getInbox();
-  const projects = getProjects().map((p) => p.slug);
-  const review = getAllTasks()
+export default async function InboxPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bed?: string }>;
+}) {
+  const sp = await searchParams;
+  const activeBed = await resolveActiveBed(sp.bed);
+  const items = getInbox(activeBed.inboxDir);
+  const projects = getProjects(activeBed.projectsDir).map((p) => p.slug);
+  const review = getAllTasks(activeBed.projectsDir)
     .filter((t) => t.status === "review")
     .sort((a, b) => (b.rice ?? 0) - (a.rice ?? 0));
 

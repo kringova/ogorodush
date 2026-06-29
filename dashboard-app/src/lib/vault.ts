@@ -222,11 +222,12 @@ function findProjectCard(projectDir: string, slug: string): string | null {
  * request they all share one result. Cache is automatically cleared between
  * requests (React's request-scoped cache semantics).
  */
-export const getProjects: () => Project[] = cache(function _getProjects() {
-  if (!isDir(PROJECTS_DIR)) return [];
+export const getProjects: (projectsDir?: string) => Project[] = cache(
+  function _getProjects(projectsDir: string = PROJECTS_DIR) {
+  if (!isDir(projectsDir)) return [];
   const projects: Project[] = [];
-  for (const slug of fs.readdirSync(PROJECTS_DIR)) {
-    const projectDir = path.join(PROJECTS_DIR, slug);
+  for (const slug of fs.readdirSync(projectsDir)) {
+    const projectDir = path.join(projectsDir, slug);
     if (!isDir(projectDir)) continue;
     const card = findProjectCard(projectDir, slug);
     if (!card) continue;
@@ -242,12 +243,12 @@ export const getProjects: () => Project[] = cache(function _getProjects() {
       local: asString(data.local),
       tags: asArray(data.tags),
       updated: asString(data.updated),
-      lastCommit: lastCommitDateForPath(path.join("projects", slug)),
+      lastCommit: lastCommitDateForPath(path.relative(VAULT_PATH, projectDir)),
       body: content.trim(),
       tasks: readProjectTasks(projectDir, slug),
       jtbd: asString(data.jtbd),
-      phases: phaseProgress(slug),
-      docs: projectDocs(slug),
+      phases: phaseProgress(slug, projectsDir),
+      docs: projectDocs(slug, projectsDir),
     });
   }
   // активные проекты выше, затем по приоритету, затем по дате обновления
@@ -259,18 +260,18 @@ export const getProjects: () => Project[] = cache(function _getProjects() {
   );
 });
 
-export function getProject(slug: string): Project | null {
-  return getProjects().find((p) => p.slug === slug) ?? null;
+export function getProject(slug: string, projectsDir: string = PROJECTS_DIR): Project | null {
+  return getProjects(projectsDir).find((p) => p.slug === slug) ?? null;
 }
 
-export function getTask(projectSlug: string, taskKey: string): Task | null {
+export function getTask(projectSlug: string, taskKey: string, projectsDir: string = PROJECTS_DIR): Task | null {
   // Резолвим по ключу ARTEL-#### (основной URL) или по slug (старые wiki-ссылки).
-  const tasks = getProject(projectSlug)?.tasks;
+  const tasks = getProject(projectSlug, projectsDir)?.tasks;
   return tasks?.find((t) => t.key === taskKey || t.slug === taskKey) ?? null;
 }
 
-export function getTaskById(id: number): Task | null {
-  return getAllTasks().find((t) => t.id === id) ?? null;
+export function getTaskById(id: number, projectsDir: string = PROJECTS_DIR): Task | null {
+  return getAllTasks(projectsDir).find((t) => t.id === id) ?? null;
 }
 
 export interface RoadmapPhase {
@@ -280,8 +281,8 @@ export interface RoadmapPhase {
 }
 
 /** Парсинг roadmap.md проекта в фазы. */
-export function getRoadmap(projectSlug: string): RoadmapPhase[] {
-  const file = path.join(PROJECTS_DIR, projectSlug, "roadmap.md");
+export function getRoadmap(projectSlug: string, projectsDir: string = PROJECTS_DIR): RoadmapPhase[] {
+  const file = path.join(projectsDir, projectSlug, "roadmap.md");
   if (!fs.existsSync(file)) return [];
   const { content } = matter(fs.readFileSync(file, "utf8"));
   const phases: RoadmapPhase[] = [];
@@ -304,14 +305,14 @@ export function getRoadmap(projectSlug: string): RoadmapPhase[] {
 }
 
 /** Прогресс по фазам: завершённая фаза = есть пункты и все отмечены. */
-function phaseProgress(slug: string): { done: number; total: number } {
-  const phases = getRoadmap(slug).filter((p) => p.items.length > 0);
+function phaseProgress(slug: string, projectsDir: string = PROJECTS_DIR): { done: number; total: number } {
+  const phases = getRoadmap(slug, projectsDir).filter((p) => p.items.length > 0);
   const done = phases.filter((p) => p.items.every((i) => i.done)).length;
   return { done, total: phases.length };
 }
 
-function projectDocs(slug: string) {
-  const has = (name: string) => fs.existsSync(path.join(PROJECTS_DIR, slug, name));
+function projectDocs(slug: string, projectsDir: string = PROJECTS_DIR) {
+  const has = (name: string) => fs.existsSync(path.join(projectsDir, slug, name));
   return {
     brief: has("brief.md"),
     roadmap: has("roadmap.md"),
@@ -320,21 +321,21 @@ function projectDocs(slug: string) {
   };
 }
 
-export function readProjectDoc(slug: string, name: string): string | null {
+export function readProjectDoc(slug: string, name: string, projectsDir: string = PROJECTS_DIR): string | null {
   const allowed = ["brief", "decisions", "scenarios", "roadmap"];
   if (!allowed.includes(name)) return null;
-  const file = path.join(PROJECTS_DIR, slug, name + ".md");
+  const file = path.join(projectsDir, slug, name + ".md");
   if (!fs.existsSync(file)) return null;
   return matter(fs.readFileSync(file, "utf8")).content.trim();
 }
 
-export function getAllTasks(): Task[] {
-  return getProjects().flatMap((p) => p.tasks);
+export function getAllTasks(projectsDir: string = PROJECTS_DIR): Task[] {
+  return getProjects(projectsDir).flatMap((p) => p.tasks);
 }
 
 /** Открытые задачи (todo/doing) по убыванию RICE. */
-export function getTasksByRice(): Task[] {
-  return getAllTasks()
+export function getTasksByRice(projectsDir: string = PROJECTS_DIR): Task[] {
+  return getAllTasks(projectsDir)
     .filter((t) => t.status === "todo" || t.status === "doing")
     .sort((a, b) => (b.rice ?? 0) - (a.rice ?? 0));
 }
@@ -358,13 +359,13 @@ export interface BurndownPoint {
  * События: +SP при создании задачи, −SP при закрытии выполненной.
  * Учитывает даты создания (created/createdAt) и закрытия (closedAt/updated у done).
  */
-export function getBurndown(projectSlug?: string): {
+export function getBurndown(projectSlug?: string, projectsDir: string = PROJECTS_DIR): {
   points: BurndownPoint[];
   openNow: number;
   doneTotal: number;
   total: number;
 } {
-  const all = projectSlug ? getProject(projectSlug)?.tasks ?? [] : getAllTasks();
+  const all = projectSlug ? getProject(projectSlug, projectsDir)?.tasks ?? [] : getAllTasks(projectsDir);
   // scope: задачи с проставленным sp, кроме отменённых
   const scope = all.filter((t) => t.sp != null && t.status !== "cancelled");
 
@@ -456,12 +457,12 @@ export function getSnapshots(): Snapshot[] {
   }
 }
 
-export function getInbox(): InboxItem[] {
-  if (!isDir(INBOX_DIR)) return [];
+export function getInbox(inboxDir: string = INBOX_DIR): InboxItem[] {
+  if (!isDir(inboxDir)) return [];
   const items: InboxItem[] = [];
-  for (const f of fs.readdirSync(INBOX_DIR)) {
+  for (const f of fs.readdirSync(inboxDir)) {
     if (!f.endsWith(".md")) continue;
-    const full = path.join(INBOX_DIR, f);
+    const full = path.join(inboxDir, f);
     const { data, content } = matter(fs.readFileSync(full, "utf8"));
     items.push({
       slug: path.basename(f, ".md"),

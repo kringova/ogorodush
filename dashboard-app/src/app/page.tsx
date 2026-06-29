@@ -8,6 +8,7 @@ import {
   fmtRice,
 } from "@/lib/ui";
 import Badge from "@/components/Badge";
+import { resolveActiveBed } from "@/lib/activeBed";
 
 export const dynamic = "force-dynamic";
 
@@ -120,8 +121,14 @@ function ProjectCard({ p }: { p: Project }) {
   );
 }
 
-export default function ProjectsPage() {
-  const projects = getProjects();
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ bed?: string }>;
+}) {
+  const sp = await searchParams;
+  const activeBed = await resolveActiveBed(sp.bed);
+  const projects = getProjects(activeBed.projectsDir);
   const active = projects.filter((p) => p.status === "active");
   // прочие: на паузе / идеи — выше, готовые — в конец
   const otherRank = (s: string) => (s === "done" ? 2 : s === "idea" ? 1 : 0);

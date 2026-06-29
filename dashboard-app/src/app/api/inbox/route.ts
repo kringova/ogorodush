@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { VAULT_PATH } from "@/lib/vault";
+import { getBeds } from "@/lib/beds";
+import { getActiveBedFromCookie } from "@/lib/activeBed";
+import { gitPersist } from "@/lib/gitPersist";
 
 export const runtime = "nodejs";
 
-const INBOX_DIR = path.join(VAULT_PATH, "_inbox");
+const DEFAULT_INBOX_DIR = path.join(VAULT_PATH, "_inbox");
 
 function pad(n: number): string {
   return String(n).padStart(2, "0");
@@ -21,7 +23,7 @@ function stamp(d: Date): string {
 }
 
 export async function POST(req: Request) {
-  let body: { text?: string; project?: string };
+  let body: { text?: string; project?: string; bedId?: string };
   try {
     body = await req.json();
   } catch {
@@ -34,11 +36,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "пустая запись" }, { status: 400 });
   }
 
-  fs.mkdirSync(INBOX_DIR, { recursive: true });
+  // Пишем в инбокс активной грядки.
+  // Приоритет: bedId из body → cookie → корень vault.
+  const bedId = (body.bedId ?? "").trim();
+  let inboxDir: string;
+  if (bedId) {
+    const bed = getBeds().find((b) => b.id === bedId);
+    inboxDir = bed ? bed.inboxDir : DEFAULT_INBOX_DIR;
+  } else {
+    const activeBed = await getActiveBedFromCookie();
+    inboxDir = activeBed.inboxDir;
+  }
+
+  fs.mkdirSync(inboxDir, { recursive: true });
 
   const now = new Date();
   const slug = `${stamp(now)}-${randomUUID().slice(0, 4)}`;
-  const file = path.join(INBOX_DIR, `${slug}.md`);
+  const file = path.join(inboxDir, `${slug}.md`);
 
   const frontmatter = [
     "---",
@@ -55,23 +69,10 @@ export async function POST(req: Request) {
 
   fs.writeFileSync(file, frontmatter, "utf8");
 
-  // На VPS — закоммитить и запушить обратно в репо vault.
-  // Локально (без INBOX_GIT_PUSH) просто пишем файл.
-  let pushed = false;
-  if (process.env.INBOX_GIT_PUSH) {
-    try {
-      const git = (...args: string[]) =>
-        execFileSync("git", args, { cwd: VAULT_PATH, stdio: "pipe" });
-      git("add", path.relative(VAULT_PATH, file));
-      git("commit", "-m", `inbox: ${slug}`);
-      git("pull", "--rebase", "--autostash");
-      git("push");
-      pushed = true;
-    } catch (e) {
-      // Файл записан — потеря пуша не критична, разберём при следующем pull.
-      console.error("inbox git push failed:", e);
-    }
-  }
+  const pushed = gitPersist(
+    [path.relative(VAULT_PATH, file)],
+    `inbox: ${slug}`
+  );
 
   return NextResponse.json({ ok: true, slug, pushed });
 }
