@@ -1,0 +1,155 @@
+# Smoke-CI шаблона Огород: проверяет, что клон репозитория «работает из коробки».
+# Три независимые джобы: mini-дашборд, next-приложение дашборда, гейты pre-commit-хука.
+name: smoke
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  # Джоба 1: mini-дашборд (dashboard/serve.js) поднимается и отдаёт контент example-project.
+  mini-dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Поднять mini-дашборд в фоне
+        run: node dashboard/serve.js --port 4321 &
+
+      - name: Дождаться готовности (цикл с таймаутом, без sleep-наугад)
+        run: |
+          timeout=30
+          elapsed=0
+          until curl -sSf http://localhost:4321/ -o /dev/null; do
+            elapsed=$((elapsed + 1))
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "Дашборд не поднялся за ${timeout}s" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Проверить страницы и контент example-project
+        run: |
+          for page in "/" "/kanban" "/rice"; do
+            out="/tmp/mini-$(echo "$page" | tr '/' '_').html"
+            curl -sSf "http://localhost:4321${page}" -o "$out"
+            if ! grep -q "example-project" "$out"; then
+              echo "Страница ${page} не содержит контент example-project" >&2
+              exit 1
+            fi
+          done
+
+      - name: Убить фоновый процесс дашборда
+        if: always()
+        run: |
+          pid=$(lsof -ti :4321 || true)
+          if [ -n "$pid" ]; then
+            kill "$pid"
+          fi
+
+  # Джоба 2: dashboard-app (Next.js) собирается и запускается на реальном vault-чекауте.
+  dashboard-app-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: dashboard-app/package-lock.json
+
+      - name: Установить зависимости и собрать
+        working-directory: dashboard-app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Запустить next start в фоне (VAULT_PATH = чекаут репозитория)
+        working-directory: dashboard-app
+        run: VAULT_PATH="$GITHUB_WORKSPACE" npm start &
+
+      - name: Дождаться готовности (цикл с таймаутом, без sleep-наугад)
+        run: |
+          timeout=30
+          elapsed=0
+          until curl -sSf http://localhost:3000/ -o /dev/null; do
+            elapsed=$((elapsed + 1))
+            if [ "$elapsed" -ge "$timeout" ]; then
+              echo "dashboard-app не поднялся за ${timeout}s" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Проверить страницы
+        run: |
+          for page in "/" "/kanban" "/beds"; do
+            curl -sSf "http://localhost:3000${page}" -o /dev/null
+          done
+
+      - name: Убить фоновый процесс next start
+        if: always()
+        run: |
+          pid=$(lsof -ti :3000 || true)
+          if [ -n "$pid" ]; then
+            kill "$pid"
+          fi
+
+  # Джоба 3: гейты pre-commit-хука (scripts/check-task-close.py) на example-project.
+  # Неправильный путь (todo -> done напрямую) обязан упасть; правильный (todo -> doing ->
+  # review -> done с OGOROD_APPROVE=1) обязан пройти. Работает на CI-чекауте, дерево не
+  # восстанавливается — коммиты не пушатся за пределы job-раннера.
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Включить хук и тестовую git-identity
+        run: |
+          git config core.hooksPath .githooks
+          chmod +x .githooks/pre-commit
+          git config user.email "ci-smoke@example.com"
+          git config user.name "CI Smoke Test"
+
+      - name: Неправильный путь (todo -> done напрямую) обязан упасть
+        run: |
+          task="projects/example-project/tasks/replace-example.md"
+          sed -i 's/^status: todo$/status: done/' "$task"
+          git add "$task"
+          if git commit -m "smoke: illegal todo->done flip"; then
+            echo "Хук пропустил недопустимый переход todo -> done — гейт не работает" >&2
+            exit 1
+          fi
+          echo "Ок: коммит корректно заблокирован хуком"
+
+      - name: Вернуть файл задачи к исходному состоянию
+        run: git reset --hard HEAD
+
+      - name: Правильный путь todo -> doing -> review обязан пройти
+        run: |
+          task="projects/example-project/tasks/replace-example.md"
+          sed -i 's/^status: todo$/status: doing/' "$task"
+          git add "$task"
+          git commit -m "smoke: todo -> doing"
+
+          sed -i 's/^status: doing$/status: review/' "$task"
+          git add "$task"
+          git commit -m "smoke: doing -> review"
+
+      - name: Апрув в done (OGOROD_APPROVE=1) обязан пройти
+        run: |
+          task="projects/example-project/tasks/replace-example.md"
+          sed -i 's/^status: review$/status: done/' "$task"
+          git add "$task"
+          OGOROD_APPROVE=1 git commit -m "smoke: review -> done (approved)"
