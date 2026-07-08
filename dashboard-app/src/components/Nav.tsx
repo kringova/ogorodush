@@ -10,6 +10,7 @@ const MAIN_LINKS = [
   { href: "/kanban", label: "Канбан" },
   { href: "/rice", label: "RICE" },
   { href: "/analytics", label: "Аналитика" },
+  { href: "/recap", label: "Дайджест" },
 ];
 
 const RIGHT_LINKS = [{ href: "/help", label: "Справка" }];

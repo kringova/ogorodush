@@ -585,3 +585,97 @@ export function getInbox(inboxDir: string = INBOX_DIR): InboxItem[] {
   }
   return items.sort((a, b) => b.created.localeCompare(a.created));
 }
+
+export type DigestPeriodType = "week" | "month" | "quarter" | "half" | "other";
+
+const DIGEST_PERIOD_TYPES: readonly string[] = ["week", "month", "quarter", "half", "other"];
+
+export interface Digest {
+  period: string; // 2026-06 | 2026-W26 | 2026-H1
+  type: string; // week | month | half (сырое значение из frontmatter, может быть пустым)
+  /** Тип периода: из frontmatter, если известен, иначе выведен из формы period. */
+  periodType: DigestPeriodType;
+  /** ISO-дата начала периода — для сортировки и prev/next. "" для нераспознанного period. */
+  periodStart: string;
+  range: string;
+  generated: string;
+  title: string; // первый заголовок «# …» или period
+  body: string; // markdown тела (без frontmatter)
+}
+
+/** Определяет тип периода по форме идентификатора (YYYY-Wnn / YYYY-MM / YYYY-Qn / YYYY-Hn). */
+export function digestPeriodType(period: string): DigestPeriodType {
+  if (/^\d{4}-W\d{1,2}$/.test(period)) return "week";
+  if (/^\d{4}-\d{2}$/.test(period)) return "month";
+  if (/^\d{4}-Q[1-4]$/.test(period)) return "quarter";
+  if (/^\d{4}-H[1-2]$/.test(period)) return "half";
+  return "other";
+}
+
+/** ISO-дата начала периода (понедельник для недели, 1-е число для месяца/квартала/полугодия). "" если форма не распознана. */
+export function digestPeriodStart(period: string): string {
+  let m: RegExpMatchArray | null;
+  if ((m = period.match(/^(\d{4})-W(\d{1,2})$/))) {
+    const year = Number(m[1]);
+    const week = Number(m[2]);
+    // 4 января всегда попадает в ISO-неделю 1 — от неё считаем понедельник первой недели
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4Day = jan4.getUTCDay() || 7; // пн=1 … вс=7
+    const week1Monday = new Date(jan4);
+    week1Monday.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+    const target = new Date(week1Monday);
+    target.setUTCDate(week1Monday.getUTCDate() + (week - 1) * 7);
+    return target.toISOString().slice(0, 10);
+  }
+  if ((m = period.match(/^(\d{4})-(\d{2})$/))) {
+    return `${m[1]}-${m[2]}-01`;
+  }
+  if ((m = period.match(/^(\d{4})-Q([1-4])$/))) {
+    const month = (Number(m[2]) - 1) * 3 + 1;
+    return `${m[1]}-${String(month).padStart(2, "0")}-01`;
+  }
+  if ((m = period.match(/^(\d{4})-H([1-2])$/))) {
+    const month = Number(m[2]) === 1 ? "01" : "07";
+    return `${m[1]}-${month}-01`;
+  }
+  return "";
+}
+
+/** Читает дайджесты из digestsDir (новые сверху по началу периода). Нет папки — []. */
+export function getDigests(digestsDir?: string): Digest[] {
+  if (!digestsDir || !isDir(digestsDir)) return [];
+  let files: string[];
+  try {
+    files = fs.readdirSync(digestsDir);
+  } catch {
+    return [];
+  }
+  const out: Digest[] = [];
+  for (const f of files) {
+    if (!f.endsWith(".md")) continue;
+    try {
+      const { data, content } = matter(fs.readFileSync(path.join(digestsDir, f), "utf8"));
+      const period = asString(data.period) || path.basename(f, ".md");
+      const rawType = asString(data.type);
+      const titleMatch = content.match(/^#\s+(.+)$/m);
+      out.push({
+        period,
+        type: rawType,
+        periodType: DIGEST_PERIOD_TYPES.includes(rawType)
+          ? (rawType as DigestPeriodType)
+          : digestPeriodType(period),
+        periodStart: digestPeriodStart(period),
+        range: asString(data.range),
+        generated: asString(data.generated),
+        title: titleMatch ? titleMatch[1].trim() : period,
+        body: content.trim(),
+      });
+    } catch {
+      /* skip malformed */
+    }
+  }
+  // новые сверху: по началу периода убывающе, при равенстве — по period
+  return out.sort(
+    (a, b) => b.periodStart.localeCompare(a.periodStart) || b.period.localeCompare(a.period)
+  );
+}

@@ -9,6 +9,7 @@ export interface Bed {
   isDefault: boolean;
   projectsDir: string;
   inboxDir: string;
+  digestsDir: string;
 }
 
 function readBedJson(filePath: string): { id: string; name: string; type: "agent" | "user" } | null {
@@ -44,6 +45,7 @@ export function getBeds(): Bed[] {
     isDefault: true,
     projectsDir: path.join(VAULT_PATH, "projects"),
     inboxDir: path.join(VAULT_PATH, "_inbox"),
+    digestsDir: path.join(VAULT_PATH, "digests"),
   });
 
   // Дополнительные грядки — VAULT_PATH/beds/*/bed.json
@@ -72,6 +74,7 @@ export function getBeds(): Bed[] {
         isDefault: false,
         projectsDir: path.join(bedDir, "projects"),
         inboxDir: path.join(bedDir, "_inbox"),
+        digestsDir: path.join(bedDir, "digests"),
       });
     }
   }
