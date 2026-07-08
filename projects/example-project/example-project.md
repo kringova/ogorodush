@@ -4,6 +4,7 @@ type: product
 priority: medium
 tags: [project]
 audience: "пример — удалите этот проект"
+jtbd: "когда я клонирую Огород, хочу увидеть заполненный пример, чтобы понять формат карточки и задач"
 repo: ""
 local: ""
 updated: 2026-06-12

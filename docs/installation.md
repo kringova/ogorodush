@@ -93,7 +93,9 @@ OGOROD_APPROVE=1 git commit -m "close: task-123 done"
 - [ ] `close` — закрыть задачу / отправить на апрув
 - [ ] `recap` — итоги за период
 - [ ] `inbox` — разобрать инбокс
+- [ ] `setup` — онбординг vault + выбор дашборда
 - [ ] `onboard` — поднять доку по brownfield-проекту
+- [ ] `charter` — родить новый проект по канону (greenfield)
 
 Проверить наличие:
 ```bash
@@ -101,8 +103,6 @@ ls skills/
 ```
 
 Если навык отсутствует — скопируйте его из актуального шаблона [github.com/kringova/ogorodush](https://github.com/kringova/ogorodush).
-
-- [ ] `setup` — онбординг vault + выбор дашборда
 
 ## Выбор дашборда
 

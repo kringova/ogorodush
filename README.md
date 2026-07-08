@@ -157,7 +157,7 @@ _templates/, skills/ или docs/, синхронизируйся оттуда.
 - [Установка и настройка](docs/installation.md) — шаблон, клон, Obsidian, несколько устройств, встраивание в код-репо
 
 **Инструменты**
-- [Дашборд](dashboard/README.md) — локальная веб-витрина
+- [Дашборд](dashboard/README.md) — mini, локальная веб-витрина без сборки; второй уровень — full (`dashboard-app/`, Next.js: Гант, роадмап, JTBD, хостинг) — выбор и установка в [docs/installation.md](docs/installation.md)
 
 </td>
 <td valign="top" width="33%">
@@ -174,7 +174,7 @@ _templates/, skills/ или docs/, синхронизируйся оттуда.
 
 **Справка**
 - [Архитектура](docs/architecture.md) — из чего собран шаблон
-- [Навыки](docs/skills.md) — sync / backlog / close / recap / inbox / onboard / charter
+- [Навыки](docs/skills.md) — sync / backlog / close / recap / inbox / setup / onboard / charter
 - [Справочник полей](docs/reference.md) — все поля frontmatter
 - [Уроки и храповик](docs/lessons.md) — как фиксируются ошибки
 - [FAQ](docs/faq.md) · [Changelog](CHANGELOG.md)
@@ -207,6 +207,7 @@ skills/
   close/             ← закрыть задачу (review + лог сессии) или завести постфактум
   recap/             ← итоги за период (день/неделя/месяц) для ревью и саморефлексии
   inbox/             ← разобрать _inbox/ в задачи
+  setup/             ← первый запуск vault: онбординг + выбор дашборда
   onboard/           ← поднять канон доки существующего проекта (brownfield)
   charter/           ← родить новый проект по канону (greenfield)
 ```
