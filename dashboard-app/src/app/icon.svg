@@ -1,10 +1,9 @@
 <svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="512" height="512" rx="115" fill="#ef6b5b"/>
-  <!-- строка 1: отмечено -->
-  <rect x="118" y="166" width="86" height="86" rx="24" fill="#ffffff"/>
-  <path d="M142 210 l17 18 l27 -34" stroke="#ef6b5b" stroke-width="15" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <rect x="232" y="195" width="172" height="28" rx="14" fill="#ffffff"/>
-  <!-- строка 2: не отмечено -->
-  <rect x="125.5" y="293.5" width="71" height="71" rx="20" stroke="#ffffff" stroke-width="15"/>
-  <rect x="232" y="315" width="172" height="28" rx="14" fill="#ffffff" fill-opacity="0.6"/>
+  <rect width="512" height="512" rx="115" fill="#16a34a"/>
+  <!-- росток: стебель -->
+  <path d="M256 384 L256 250" stroke="#ffffff" stroke-width="24" stroke-linecap="round"/>
+  <!-- правый лист -->
+  <path d="M256 292 C 306 278 350 236 354 168 C 300 182 260 230 256 292 Z" fill="#ffffff"/>
+  <!-- левый лист -->
+  <path d="M256 292 C 206 278 162 236 158 168 C 212 182 252 230 256 292 Z" fill="#ffffff" fill-opacity="0.85"/>
 </svg>
