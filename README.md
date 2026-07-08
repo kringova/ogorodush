@@ -178,6 +178,7 @@ _templates/, skills/ или docs/, синхронизируйся оттуда.
 - [Архитектура](docs/architecture.md) — из чего собран шаблон
 - [Навыки](docs/skills.md) — sync / backlog / close / recap / inbox / setup / onboard / charter / update
 - [Справочник полей](docs/reference.md) — все поля frontmatter
+- [CONTRIBUTING](CONTRIBUTING.md) — как предложить изменение шаблону
 - [Уроки и храповик](docs/lessons.md) — как фиксируются ошибки
 - [FAQ](docs/faq.md) · [Changelog](CHANGELOG.md)
 
