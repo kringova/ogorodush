@@ -609,7 +609,7 @@ function searchPage(data, q) {
 
   const taskItems = matchedTasks.length
     ? `<div class="search-group">
-        <h2 class="sec-h"><span class="dot" style="background:#ef6b5b"></span>Задачи · ${matchedTasks.length}</h2>
+        <h2 class="sec-h"><span class="dot" style="background:#16a34a"></span>Задачи · ${matchedTasks.length}</h2>
         <div class="search-list">${matchedTasks.map((t) => `
           <a class="search-item" href="/t/${esc(t.id)}">
             <span class="kc-id">${ticket(t.id)}</span>
@@ -824,8 +824,9 @@ function renderShell(data, page, title, subtitle, content) {
   return `<!doctype html><html lang="ru"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Огород — ${esc(title)}</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg width='512' height='512' viewBox='0 0 512 512' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='512' height='512' rx='115' fill='%2316a34a'/%3E%3Cpath d='M256 384 L256 250' stroke='white' stroke-width='24' stroke-linecap='round'/%3E%3Cpath d='M256 292 C 306 278 350 236 354 168 C 300 182 260 230 256 292 Z' fill='white'/%3E%3Cpath d='M256 292 C 206 278 162 236 158 168 C 212 182 252 230 256 292 Z' fill='white' fill-opacity='0.85'/%3E%3C/svg%3E">
 <style>
-  :root { --accent:#ef6b5b; --ink:#262626; --muted:#737373; --line:#e5e5e5; --bg:#fafafa; }
+  :root { --accent:#16a34a; --ink:#262626; --muted:#737373; --line:#e5e5e5; --bg:#fafafa; }
   * { box-sizing:border-box; }
   html,body { overflow-x:hidden; }
   body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; -webkit-font-smoothing:antialiased; }
