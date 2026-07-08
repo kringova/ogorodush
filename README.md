@@ -129,7 +129,7 @@
    (Cursor, Codex и некоторые другие читают AGENTS.md сами — тогда просто
    подтверди, что прочёл правила, и продолжай.)
 2. Навыки — это пошаговые markdown-инструкции в skills/<имя>/SKILL.md:
-   sync, backlog, close, recap, inbox, onboard, charter, setup. Когда задача
+   sync, backlog, close, recap, inbox, onboard, charter, setup, update. Когда задача
    соответствует навыку — открой его файл и выполни по шагам.
 3. Главное правило: каждое значимое действие отражай задачей и не отчитывайся
    «готово», пока работа не отражена задачей и не проверена. Статус done ставит
@@ -176,7 +176,7 @@ _templates/, skills/ или docs/, синхронизируйся оттуда.
 
 **Справка**
 - [Архитектура](docs/architecture.md) — из чего собран шаблон
-- [Навыки](docs/skills.md) — sync / backlog / close / recap / inbox / setup / onboard / charter
+- [Навыки](docs/skills.md) — sync / backlog / close / recap / inbox / setup / onboard / charter / update
 - [Справочник полей](docs/reference.md) — все поля frontmatter
 - [Уроки и храповик](docs/lessons.md) — как фиксируются ошибки
 - [FAQ](docs/faq.md) · [Changelog](CHANGELOG.md)
@@ -212,6 +212,7 @@ skills/
   setup/             ← первый запуск vault: онбординг + выбор дашборда
   onboard/           ← поднять канон доки существующего проекта (brownfield)
   charter/           ← родить новый проект по канону (greenfield)
+  update/            ← применить обновление шаблона из свежего релиза
 ```
 
 <br>
