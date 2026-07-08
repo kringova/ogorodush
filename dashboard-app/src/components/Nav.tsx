@@ -83,8 +83,8 @@ export default function Nav({
     <header className="sticky top-0 z-50 border-b border-neutral-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:gap-4">
         <BedLink href="/" className="mr-2 flex items-center gap-2 font-semibold">
-          <span className="grid h-6 w-6 place-items-center rounded-md bg-[color:var(--color-accent)] text-xs font-bold text-white">
-            A
+          <span className="grid h-6 w-6 place-items-center text-lg leading-none">
+            🌱
           </span>
           <span className="hidden sm:inline">Огород</span>
         </BedLink>
