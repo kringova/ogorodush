@@ -1,3 +1,5 @@
+import { TICKET_PREFIX } from "./config";
+
 /**
  * Общая утилита матчинга задач по строке запроса.
  * Переиспользуется в SearchClient и KanbanFilterBar (не дублируем логику).
@@ -25,7 +27,7 @@ export function buildHaystack(fields: {
   tags: string[];
   body: string;
 }): string {
-  const ticket = `ARTEL-${String(fields.id).padStart(4, "0")}`;
+  const ticket = `${TICKET_PREFIX}-${String(fields.id).padStart(4, "0")}`;
   return [
     ticket,
     String(fields.id),

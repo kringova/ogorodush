@@ -242,7 +242,7 @@ export default function KanbanFilterBar({
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="ARTEL-42, название, тег…"
+            placeholder="OGOROD-42, название, тег…"
             className="w-full rounded-xl border border-neutral-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-[color:var(--color-accent)]"
           />
           {q && (

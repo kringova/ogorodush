@@ -1,4 +1,5 @@
 import type { TaskStatus } from "./vault";
+import { TICKET_PREFIX } from "./config";
 
 export const STATUS_LABEL: Record<string, string> = {
   todo: "Todo",
@@ -99,7 +100,7 @@ export const DUE_BADGE_CLASS: Record<string, string> = {
   normal: "bg-neutral-100 text-neutral-500 ring-neutral-200",
 };
 
-/** Номер тикета: 42 → "ARTEL-0042". */
+/** Номер тикета: 42 → "OGOROD-0042". */
 export function fmtTicket(id: number): string {
-  return id ? `ARTEL-${String(id).padStart(4, "0")}` : "";
+  return id ? `${TICKET_PREFIX}-${String(id).padStart(4, "0")}` : "";
 }

@@ -20,7 +20,7 @@ npm run lint
 ## Структура
 
 - `src/lib/` — ядро:
-  - `vault.ts` — чтение md vault (проекты, задачи, RICE; типы `Task`/`Project`; `Task.key` = `ARTEL-####`);
+  - `vault.ts` — чтение md vault (проекты, задачи, RICE; типы `Task`/`Project`; `Task.key` = `OGOROD-####`);
   - `markdown.ts` — рендер тел и `[[wiki-ссылок]]`;
   - `git.ts` — даты из git; `ui.ts` — форматтеры (`fmtTicket`, `fmtRice`); `config.ts` — capacity/оценки.
 - `src/app/` — роуты: `projects`, `t/[key]` (короткий URL задачи), `kanban`, `rice`, `roadmap`, `burndown`, `search`, `inbox`, `api`.
@@ -29,7 +29,7 @@ npm run lint
 ## Конвенции
 
 - Данных-БД нет — **источник правды это md-файлы vault**; дашборд только читает (кроме инбокса: `POST /api/inbox` → файл в `_inbox/` + commit/push).
-- Ссылки на задачу — по `key` (`ARTEL-####`), роут резолвит и по key, и по старому slug (wiki-ссылки целы).
+- Ссылки на задачу — по `key` (`OGOROD-####`), роут резолвит и по key, и по старому slug (wiki-ссылки целы).
 - Деплой и прод — **см. [README.md](README.md)** (runbook, точка истины, не гадать).
 
 ## Документация

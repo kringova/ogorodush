@@ -3,11 +3,37 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { cache } from "react";
 import matter from "gray-matter";
-import { IDEAL_DAYS_PER_PERSON_WEEK } from "./config";
+import { IDEAL_DAYS_PER_PERSON_WEEK, TICKET_PREFIX } from "./config";
 
-/** Корень vault. На VPS — путь к клону репо, локально — папка vault. */
-export const VAULT_PATH =
-  process.env.VAULT_PATH || process.cwd();
+/**
+ * Корень vault. На VPS — путь к клону репо, локально — папка vault.
+ * Без VAULT_PATH временно фолбэчится на process.cwd() — валидность фолбэка
+ * (и, если он не годится, понятная ошибка) проверяется через assertVaultPath()
+ * лениво, при первом реальном чтении данных, а не здесь на импорте модуля.
+ * Если бросать тут, любой билд (`next build`) падает: Next импортирует роуты
+ * при сборе page-data ещё до старта сервера — vault.ts подтягивается транзитивно
+ * даже для страниц/роутов, которые в рантайме ничего не прочитают.
+ */
+export const VAULT_PATH = process.env.VAULT_PATH || process.cwd();
+
+let vaultPathChecked = false;
+
+/**
+ * Fail-fast: без VAULT_PATH и без папки projects/ в cwd — непонятно, какой vault
+ * читать, значит process.cwd() как фолбэк не годится. Зовётся из точек входа
+ * чтения данных (getProjects/getInbox/getSnapshots), не при импорте модуля.
+ */
+function assertVaultPath(): void {
+  if (vaultPathChecked) return;
+  vaultPathChecked = true;
+  if (process.env.VAULT_PATH) return;
+  if (fs.existsSync(path.join(process.cwd(), "projects"))) return;
+  throw new Error(
+    "VAULT_PATH не задан, а в текущей директории нет папки projects/ — непонятно, какой vault читать. " +
+      "Укажи переменную окружения: VAULT_PATH=/path/to/vault npm run dev (или npm start), " +
+      "либо запускай дашборд из корня vault."
+  );
+}
 
 const PROJECTS_DIR = path.join(VAULT_PATH, "projects");
 const INBOX_DIR = path.join(VAULT_PATH, "_inbox");
@@ -65,9 +91,9 @@ export function parseRecur(v: unknown): Recur | null {
 }
 
 export interface Task {
-  id: number; // номер тикета → ARTEL-####
+  id: number; // номер тикета → TICKET_PREFIX-####
   slug: string; // имя md-файла (для wiki-ссылок и обратной совместимости URL)
-  key: string; // ключ тикета ARTEL-#### (основной идентификатор в URL); = slug, если id нет
+  key: string; // ключ тикета TICKET_PREFIX-#### (основной идентификатор в URL); = slug, если id нет
   project: string; // slug проекта (имя папки)
   status: TaskStatus;
   title: string; // человекочитаемое имя из slug
@@ -231,7 +257,7 @@ function readTask(projectSlug: string, filePath: string): Task | null {
   return {
     id,
     slug,
-    key: id ? `ARTEL-${String(id).padStart(4, "0")}` : slug,
+    key: id ? `${TICKET_PREFIX}-${String(id).padStart(4, "0")}` : slug,
     project: projectSlug,
     status,
     title: humanize(slug),
@@ -307,6 +333,7 @@ function findProjectCard(projectDir: string, slug: string): string | null {
  */
 export const getProjects: (projectsDir?: string) => Project[] = cache(
   function _getProjects(projectsDir: string = PROJECTS_DIR) {
+  assertVaultPath();
   if (!isDir(projectsDir)) return [];
   const projects: Project[] = [];
   for (const slug of fs.readdirSync(projectsDir)) {
@@ -348,7 +375,7 @@ export function getProject(slug: string, projectsDir: string = PROJECTS_DIR): Pr
 }
 
 export function getTask(projectSlug: string, taskKey: string, projectsDir: string = PROJECTS_DIR): Task | null {
-  // Резолвим по ключу ARTEL-#### (основной URL) или по slug (старые wiki-ссылки).
+  // Резолвим по ключу TICKET_PREFIX-#### (основной URL) или по slug (старые wiki-ссылки).
   const tasks = getProject(projectSlug, projectsDir)?.tasks;
   return tasks?.find((t) => t.key === taskKey || t.slug === taskKey) ?? null;
 }
@@ -521,6 +548,7 @@ export interface Snapshot {
 }
 
 export function getSnapshots(): Snapshot[] {
+  assertVaultPath();
   const file = path.join(VAULT_PATH, "metrics/snapshots.jsonl");
   try {
     const raw = fs.readFileSync(file, "utf8");
@@ -541,6 +569,7 @@ export function getSnapshots(): Snapshot[] {
 }
 
 export function getInbox(inboxDir: string = INBOX_DIR): InboxItem[] {
+  assertVaultPath();
   if (!isDir(inboxDir)) return [];
   const items: InboxItem[] = [];
   for (const f of fs.readdirSync(inboxDir)) {

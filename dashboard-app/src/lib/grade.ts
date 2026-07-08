@@ -64,7 +64,7 @@ export function effectiveGrade(t: {
 
 export interface GradeSharePoint {
   date: string; // updated date of the task
-  key: string;  // task key (ARTEL-####)
+  key: string;  // task key (OGOROD-####)
   seniorPct: number | null;
   middlePct: number | null;
   juniorPct: number | null;

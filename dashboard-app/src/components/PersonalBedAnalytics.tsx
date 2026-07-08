@@ -30,7 +30,7 @@ function median(arr: number[]): number | null {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-/** Отображаемый ключ задачи: для ARTEL-### задач — key уже содержит ключ. */
+/** Отображаемый ключ задачи: для OGOROD-### задач — key уже содержит ключ. */
 function taskDisplayKey(t: PersonalTask): string {
   return t.key;
 }

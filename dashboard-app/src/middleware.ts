@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const COOKIE_NAME = "artel_session";
+const COOKIE_NAME = "ogorod_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days in seconds
-const SALT = "artel-dashboard-v1";
+const SALT = "ogorod-dashboard-v1";
 
 /**
  * Derive a session token from the password using HMAC-SHA-256 (Web Crypto API).
@@ -40,7 +40,7 @@ function safeEqual(a: string, b: string): boolean {
  * v2-защита: HTTP Basic Auth + persistent session cookie.
  *
  * После первого успешного Basic-auth в ответ устанавливается httpOnly-cookie
- * (artel_session) — токен = HMAC-SHA-256(password, staticSalt). На следующих
+ * (ogorod_session) — токен = HMAC-SHA-256(password, staticSalt). На следующих
  * запросах middleware принимает либо cookie, либо Basic-заголовок.
  * Это решает проблему мобильных браузеров (iOS Safari), которые агрессивно
  * сбрасывают Basic-credentials из памяти таба.

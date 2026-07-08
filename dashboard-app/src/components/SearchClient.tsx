@@ -65,7 +65,7 @@ export default function SearchClient({ tasks }: { tasks: SearchTask[] }) {
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="налог, поиск, ARTEL-42…"
+            placeholder="налог, поиск, OGOROD-42…"
             className="w-full rounded-xl border border-neutral-200 bg-white py-2.5 pl-9 pr-3 text-sm outline-none focus:border-[color:var(--color-accent)]"
           />
           {q && (

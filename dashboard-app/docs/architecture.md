@@ -13,7 +13,7 @@ Next.js на лету читает их (`gray-matter` фронтматтер + 
 
 ```
 vault (md: projects/*, tasks/*) 
-   → src/lib/vault.ts  (парсинг фронтматтера → типы Task/Project, расчёт RICE, key=ARTEL-####)
+   → src/lib/vault.ts  (парсинг фронтматтера → типы Task/Project, расчёт RICE, key=OGOROD-####)
    → роуты src/app/*   (projects, t/[key], kanban, rice, analytics, inbox, roadmap, burndown, help)
    → src/lib/markdown.ts (рендер тел задач и [[wiki-ссылок]])
 ```
@@ -25,7 +25,7 @@ vault (md: projects/*, tasks/*)
 
 | Модуль | Ответственность |
 |---|---|
-| `vault.ts` | чтение vault, типы `Task`/`Project`, RICE, `getTask`/`getProject`; `key` = `ARTEL-####` |
+| `vault.ts` | чтение vault, типы `Task`/`Project`, RICE, `getTask`/`getProject`; `key` = `OGOROD-####` |
 | `markdown.ts` | рендер md-тел, преобразование `[[tasks/...]]` в ссылки |
 | `git.ts` | первая/последняя дата коммита файла |
 | `ui.ts` | форматтеры: `fmtTicket`, `fmtRice`, статусы |
