@@ -8,6 +8,7 @@
 ## Unreleased
 
 ### Добавлено
+- **Живое демо** — [ogorod.ringova.com](https://ogorod.ringova.com): read-only full-дашборд поверх example-vault, обновляется с релизами.
 - `CONTRIBUTING.md` — как предлагать изменения (канон и копии, правила PR, релизы).
 - Правило **Breaking-релиз** (AGENTS.md) + шаблон релизноутс с секцией «Миграция» (docs/reference.md): ломающее изменение обязано нести шаги миграции и мажорную версию.
 
