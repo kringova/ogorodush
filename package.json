@@ -1,6 +1,6 @@
 {
   "name": "ogorodush",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Огород — рабочая среда для проектов с ИИ-агентом: память в markdown, RICE-беклог, тиринг моделей, без вендор-лока",
   "license": "MIT",
   "type": "module",

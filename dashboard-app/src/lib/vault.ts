@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { cache } from "react";
 import matter from "gray-matter";
 import { IDEAL_DAYS_PER_PERSON_WEEK, TICKET_PREFIX } from "./config";
+import { mondayOf, addDaysIso, weekRangeLabel } from "./weeks";
 
 /**
  * Корень vault. На VPS — путь к клону репо, локально — папка vault.
@@ -533,6 +534,108 @@ export function getBurndown(projectSlug?: string, projectsDir: string = PROJECTS
   return { points, openNow, doneTotal, total };
 }
 
+export interface WeeklyFlowPoint {
+  /** Понедельник ISO-недели (YYYY-MM-DD). */
+  weekStart: string;
+  /** «23–29 июн» — диапазон недели для тултипа/подписей. */
+  rangeLabel: string;
+  createdSp: number;
+  createdCount: number;
+  closedSp: number;
+  closedCount: number;
+  /** заведено − закрыто за неделю. */
+  net: number;
+  /** текущая (неполная) неделя — рисуется приглушённо. */
+  isCurrent: boolean;
+}
+
+/**
+ * Поток по неделям: сколько SP заведено и закрыто в каждую ISO-неделю.
+ * Заведено — все незакрытые/закрытые задачи (кроме cancelled) по created_at/created.
+ * Закрыто — только status=done, по closed_at (без git-фоллбэка — поле обязательно
+ * бэкфилено для done). Если у задачи нет sp — в сумму идёт 0, но задача всё равно
+ * учитывается в счётчике (не пропускаем, чтобы не занижать «N задач»).
+ * Диапазон недель — от первой недели с данными до текущей; пустые недели не
+ * пропускаются (честная ось времени).
+ */
+export function computeWeeklyFlow(
+  tasks: Task[],
+  todayIso: string
+): { weeks: WeeklyFlowPoint[]; velocity: number; net30: number } {
+  type Bucket = { createdSp: number; createdCount: number; closedSp: number; closedCount: number };
+  const buckets = new Map<string, Bucket>();
+  const ensure = (week: string): Bucket => {
+    let b = buckets.get(week);
+    if (!b) {
+      b = { createdSp: 0, createdCount: 0, closedSp: 0, closedCount: 0 };
+      buckets.set(week, b);
+    }
+    return b;
+  };
+
+  const scope = tasks.filter((t) => t.status !== "cancelled");
+  let minWeek: string | null = null;
+
+  for (const t of scope) {
+    const createdDate = (t.createdAt || t.created || "").slice(0, 10);
+    if (createdDate) {
+      const week = mondayOf(createdDate);
+      const b = ensure(week);
+      b.createdSp += t.sp ?? 0;
+      b.createdCount += 1;
+      if (minWeek === null || week < minWeek) minWeek = week;
+    }
+    if (t.status === "done" && t.closedAt) {
+      const week = mondayOf(t.closedAt.slice(0, 10));
+      const b = ensure(week);
+      b.closedSp += t.sp ?? 0;
+      b.closedCount += 1;
+    }
+  }
+
+  const todayDate = todayIso.slice(0, 10);
+  const todayWeek = mondayOf(todayDate);
+  if (minWeek === null) minWeek = todayWeek;
+
+  const weeks: WeeklyFlowPoint[] = [];
+  for (let cursor = minWeek; cursor <= todayWeek; cursor = addDaysIso(cursor, 7)) {
+    const b = buckets.get(cursor) ?? { createdSp: 0, createdCount: 0, closedSp: 0, closedCount: 0 };
+    weeks.push({
+      weekStart: cursor,
+      rangeLabel: weekRangeLabel(cursor),
+      createdSp: b.createdSp,
+      createdCount: b.createdCount,
+      closedSp: b.closedSp,
+      closedCount: b.closedCount,
+      net: b.createdSp - b.closedSp,
+      isCurrent: cursor === todayWeek,
+    });
+  }
+
+  // Velocity: среднее закрытых SP за последние 4 ПОЛНЫХ недели (без текущей).
+  const fullWeeks = weeks.filter((w) => !w.isCurrent);
+  const lastFull = fullWeeks.slice(-4);
+  const velocity =
+    lastFull.length > 0 ? lastFull.reduce((s, w) => s + w.closedSp, 0) / lastFull.length : 0;
+
+  // Нетто за последние 30 дней — точное окно по датам (не по неделям).
+  const cutoff = addDaysIso(todayDate, -30);
+  let net30 = 0;
+  for (const t of scope) {
+    const createdDate = (t.createdAt || t.created || "").slice(0, 10);
+    if (createdDate && createdDate >= cutoff && createdDate <= todayDate) {
+      net30 += t.sp ?? 0;
+    }
+    if (t.status === "done" && t.closedAt) {
+      const closedDate = t.closedAt.slice(0, 10);
+      if (closedDate >= cutoff && closedDate <= todayDate) {
+        net30 -= t.sp ?? 0;
+      }
+    }
+  }
+
+  return { weeks, velocity, net30 };
+}
 
 export interface Snapshot {
   date: string;

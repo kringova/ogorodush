@@ -5,6 +5,7 @@
  */
 
 import type { Task } from "./vault";
+import { mondayOf } from "./weeks";
 
 export function gradeOfModel(model: string): "junior" | "middle" | "senior" | "other" {
   if (model.includes("haiku")) return "junior";
@@ -179,118 +180,68 @@ export function gradeShareByTask(tasks: Task[]): GradeSharePoint[] {
   });
 }
 
-export interface GradeCumulativePoint {
-  iso: string;            // ISO начала 3-часового бакета
-  seniorPct: number | null;
-  middlePct: number | null;
-  juniorPct: number | null;
-  cumIo: number;          // накопленный суммарный io к этому бакету
-  bucketCount: number;    // сколько задач закрыто именно в этом бакете
+export interface WeeklyGradePoint {
+  /** Понедельник ISO-недели закрытия (YYYY-MM-DD). */
+  weekStart: string;
+  io: Record<"junior" | "middle" | "senior", number>;
+  totalIo: number;
+  pct: Record<"junior" | "middle" | "senior", number>;
+  /** сколько измеренных задач закрыто на этой неделе */
+  count: number;
 }
 
 /**
- * Накопительная доля грейдов по бакетам (по умолчанию 3 часа).
- * Каждая точка — бакет (включая пустые в середине ряда), значения — накопленные
- * с самого начала. Пустые бакеты дают плоские участки — видны паузы.
- *
- * Ведущие бакеты, пока накоплено < `leadTrimShare` от всех io-токенов, не
- * показываются (их токены переносятся в накопитель — последняя точка остаётся
- * равной итогу за всё время). Это срезает одинокий ранний хвост из мелких задач,
- * который иначе держит 100% одного грейда на пустом месте. Порог 0 = не срезать.
+ * Доля io-токенов по грейдам, сгруппированная по ISO-неделям даты закрытия.
+ * Недели без измеренных задач в выдачу не попадают (сжатая ось — только
+ * активные недели), в отличие от старой накопительной версии.
  */
-export function gradeShareCumulative(
+export function weeklyGradeShare(
   tasks: Task[],
-  isoOf: (t: Task) => string,
-  bucketHours = 3,
-  leadTrimShare = 0.01
-): GradeCumulativePoint[] {
-  // measured = задачи с io-токенами
+  isoOf: (t: Task) => string
+): WeeklyGradePoint[] {
   const measured = tasks.filter(
     (t) => t.costIoTokens > 0 && t.costByModel && t.costByModel.trim()
   );
 
-  // Для каждой задачи: iso и io-дельты по грейдам
-  type TaskEntry = {
-    tMs: number;
-    io: Record<"junior" | "middle" | "senior", number>;
-  };
-
-  const entries: TaskEntry[] = [];
+  const buckets = new Map<
+    string,
+    { io: Record<"junior" | "middle" | "senior", number>; count: number }
+  >();
   for (const t of measured) {
     const iso = isoOf(t);
-    if (!iso) continue;
-    const tMs = new Date(iso).getTime();
-    if (isNaN(tMs)) continue;
-    const io: Record<"junior" | "middle" | "senior", number> = { junior: 0, middle: 0, senior: 0 };
+    const date = iso ? iso.slice(0, 10) : "";
+    if (!date) continue;
+    const week = mondayOf(date);
+    let b = buckets.get(week);
+    if (!b) {
+      b = { io: { junior: 0, middle: 0, senior: 0 }, count: 0 };
+      buckets.set(week, b);
+    }
+    b.count += 1;
     for (const pair of t.costByModel.split(";")) {
       const [modelPart, tokenPart] = pair.split("=");
       if (!modelPart || !tokenPart) continue;
       const grade = gradeOfModel(modelPart.trim());
       if (grade === "other") continue;
       const ioNum = parseInt((tokenPart.split("/")[0] || "0").trim(), 10);
-      io[grade] += ioNum;
+      b.io[grade] += ioNum;
     }
-    entries.push({ tMs, io });
   }
 
-  if (entries.length === 0) return [];
-
-  const bucketMs = bucketHours * 3600 * 1000;
-  const minMs = Math.min(...entries.map((e) => e.tMs));
-  const maxMs = Math.max(...entries.map((e) => e.tMs));
-  const startAligned = Math.floor(minMs / bucketMs) * bucketMs;
-  const lastIdx = Math.floor((maxMs - startAligned) / bucketMs);
-
-  // Раскидать дельты по бакетам
-  const buckets = new Map<number, { io: Record<"junior" | "middle" | "senior", number>; count: number }>();
-  for (const entry of entries) {
-    const idx = Math.floor((entry.tMs - startAligned) / bucketMs);
-    if (!buckets.has(idx)) {
-      buckets.set(idx, { io: { junior: 0, middle: 0, senior: 0 }, count: 0 });
-    }
-    const b = buckets.get(idx)!;
-    b.count += 1;
-    b.io.junior += entry.io.junior;
-    b.io.middle += entry.io.middle;
-    b.io.senior += entry.io.senior;
-  }
-
-  // Порог обрезки ведущих бакетов: накопленный io, ниже которого точки не
-  // показываем (токены при этом продолжают копиться → последняя точка = итог).
-  const grandTotal = entries.reduce(
-    (s, e) => s + e.io.junior + e.io.middle + e.io.senior,
-    0
-  );
-  const trimBelow = leadTrimShare > 0 ? grandTotal * leadTrimShare : 0;
-
-  // Пройти все бакеты включительно, накапливая
-  const running: Record<"junior" | "middle" | "senior", number> = { junior: 0, middle: 0, senior: 0 };
-  const points: GradeCumulativePoint[] = [];
-  let started = false;
-  for (let idx = 0; idx <= lastIdx; idx++) {
-    const b = buckets.get(idx);
-    if (b) {
-      running.junior += b.io.junior;
-      running.middle += b.io.middle;
-      running.senior += b.io.senior;
-    }
-    const totalIo = running.junior + running.middle + running.senior;
-    // Ведущие бакеты пропускаем, пока накопленное не дотянет до порога.
-    if (!started && totalIo < trimBelow) continue;
-    started = true;
-    const pct = (g: "junior" | "middle" | "senior") =>
-      totalIo > 0 ? (100 * running[g]) / totalIo : null;
-    points.push({
-      iso: new Date(startAligned + idx * bucketMs).toISOString(),
-      seniorPct: pct("senior"),
-      middlePct: pct("middle"),
-      juniorPct: pct("junior"),
-      cumIo: totalIo,
-      bucketCount: b?.count ?? 0,
-    });
-  }
-
-  return points;
+  const weeks = [...buckets.keys()].sort();
+  return weeks.map((weekStart) => {
+    const b = buckets.get(weekStart)!;
+    const totalIo = b.io.junior + b.io.middle + b.io.senior;
+    const pctOf = (g: "junior" | "middle" | "senior") =>
+      totalIo > 0 ? (100 * b.io[g]) / totalIo : 0;
+    return {
+      weekStart,
+      io: b.io,
+      totalIo,
+      pct: { junior: pctOf("junior"), middle: pctOf("middle"), senior: pctOf("senior") },
+      count: b.count,
+    };
+  });
 }
 
 /**

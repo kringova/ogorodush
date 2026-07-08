@@ -2,15 +2,16 @@ import Link from "next/link";
 import {
   getAllTasks,
   getBurndown,
+  computeWeeklyFlow,
   type Task,
 } from "@/lib/vault";
 import PersonalBedAnalytics from "@/components/PersonalBedAnalytics";
-import BurndownChart from "@/components/BurndownChart";
 import GradeBadge from "@/components/GradeBadge";
-import CumulativeGradeChart from "@/components/CumulativeGradeChart";
+import WeeklyFlowChart from "@/components/WeeklyFlowChart";
+import WeeklyGradesChart from "@/components/WeeklyGradesChart";
 import TieringCoverageBars, { type TieringCoverageBarDay } from "@/components/TieringCoverageBars";
 import TokensByGradeCard, { type TokensDataset } from "@/components/TokensByGradeCard";
-import { gradeOfModel, gradeShareCumulative } from "@/lib/grade";
+import { gradeOfModel, weeklyGradeShare } from "@/lib/grade";
 import { fmtTicket } from "@/lib/ui";
 import { completedAt, repoFirstCommitDate } from "@/lib/git";
 import { resolveActiveBed } from "@/lib/activeBed";
@@ -103,8 +104,11 @@ export default async function AnalyticsPage({
   }
 
   // --- Мемоизированный резолвер completedAt по файлу ---
+  // closed_at из frontmatter первичен (точная дата закрытия, без git-вызова на файл);
+  // git-фоллбэк — только для задач без него (например, review до апрува).
   const completedAtCache = new Map<string, string>();
   function completedAtOf(t: Task): string {
+    if (t.closedAt) return t.closedAt;
     if (!completedAtCache.has(t.file)) {
       completedAtCache.set(t.file, completedAt(t.file));
     }
@@ -122,9 +126,13 @@ export default async function AnalyticsPage({
     String(now.getDate()).padStart(2, "0"),
   ].join("-");
 
-  // --- Накопительный график ---
   const importDay = repoFirstCommitDate();
-  const cumPoints = gradeShareCumulative(tasks, completedAtOf);
+
+  // --- Поток по неделям (заведено/закрыто SP) ---
+  const { weeks: flowWeeks, velocity, net30 } = computeWeeklyFlow(tasks, todayStr);
+
+  // --- Грейды по неделям (доля io-токенов по неделе закрытия) ---
+  const weeklyGradePoints = weeklyGradeShare(tasks, completedAtOf);
 
   // --- Агрегация токенов: за всё время и сегодня ---
   const allTimeTokens = aggregateTokens(tasks);
@@ -257,44 +265,41 @@ export default async function AnalyticsPage({
         </div>
       </div>
 
-      {/* Сгорание */}
+      {/* Поток по неделям */}
       <div className="mt-6">
         <Card
-          title="Сгорание"
-          hint="остаток открытой работы (в SP) во времени — событийно: +SP при создании задачи, −SP при закрытии выполненной"
+          title="Поток по неделям"
+          hint="SP заведено и закрыто по ISO-неделям вокруг нулевой линии; нетто — засечка на уровне (заведено − закрыто)"
         >
           <div className="mb-4 grid grid-cols-3 divide-x divide-neutral-100">
             {(
               [
-                ["Осталось открытых, SP", burndown.openNow],
-                ["Выполнено, SP", burndown.doneTotal],
-                ["Всего, SP", burndown.total],
+                ["Velocity, SP/нед", velocity.toFixed(1)],
+                [
+                  "Нетто 30 дней, SP",
+                  `${net30 > 0 ? "+" : ""}${net30}`,
+                  net30 > 0 ? "text-rose-600" : "text-emerald-600",
+                ],
+                ["Открыто SP", String(burndown.openNow)],
               ] as const
-            ).map(([label, val]) => (
+            ).map(([label, val, cls]) => (
               <div key={label} className="px-4 text-center first:pl-0 last:pr-0">
-                <div className="text-2xl font-semibold text-neutral-900">{val}</div>
+                <div className={`text-2xl font-semibold ${cls ?? "text-neutral-900"}`}>{val}</div>
                 <div className="text-xs text-neutral-400">{label}</div>
               </div>
             ))}
           </div>
-          {burndown.points.length > 1 ? (
-            <BurndownChart points={burndown.points} />
-          ) : (
-            <p className="py-8 text-center text-sm text-neutral-400">
-              Пока одна точка ({burndown.openNow} открытых) — график наберёт
-              форму по мере закрытия задач.
-            </p>
-          )}
+          <WeeklyFlowChart weeks={flowWeeks} />
         </Card>
       </div>
 
-      {/* Динамика грейдов (накопительно) */}
+      {/* Грейды по неделям */}
       <div className="mt-6">
         <Card
-          title="Динамика грейдов (накопительно)"
-          hint="накопительная доля senior/middle/junior во всех io-токенах, бакеты по 3 ч по дате закрытия (из git); последняя точка = итог за всё время"
+          title="Грейды по неделям"
+          hint="доля io-токенов по грейду фактической модели за неделю закрытия"
         >
-          <CumulativeGradeChart points={cumPoints} />
+          <WeeklyGradesChart weeks={weeklyGradePoints} />
         </Card>
       </div>
 
