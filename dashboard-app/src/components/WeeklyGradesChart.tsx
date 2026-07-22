@@ -31,9 +31,10 @@ const chartH = H - PAD.t - PAD.b;
 const GAP = 2;
 const RADIUS = 4;
 
-const COLOR = { junior: "#10b981", middle: "#f59e0b", senior: "#8b5cf6" } as const;
-const ORDER = ["junior", "middle", "senior"] as const;
-const LABEL = { junior: "junior", middle: "middle", senior: "senior" } as const;
+// unknown — модель вне каталога model-grades.json: серым и громко, не выбрасываем (#490)
+const COLOR = { junior: "#10b981", middle: "#f59e0b", senior: "#8b5cf6", unknown: "#9ca3af" } as const;
+const ORDER = ["junior", "middle", "senior", "unknown"] as const; // порядок стека снизу вверх
+const LABEL = { junior: "junior", middle: "middle", senior: "senior", unknown: "unknown" } as const;
 
 function xOf(i: number, n: number): number {
   const slot = chartW / n;
@@ -139,17 +140,18 @@ export default function WeeklyGradesChart({ weeks, gateDate, gateLabel = "анн
           {weeks.map((w, i) => {
             const cx = xOf(i, n);
             const xL = cx - barW / 2;
-            const juniorH = (w.pct.junior / 100) * usableH;
-            const middleH = (w.pct.middle / 100) * usableH;
-            const seniorH = (w.pct.senior / 100) * usableH;
+            // сегменты снизу вверх по ORDER; верхний рисуется со скруглением
+            const segs: { grade: (typeof ORDER)[number]; top: number; h: number }[] = [];
+            let bottom = yBottom;
+            for (const g of ORDER) {
+              const h = ((w.pct[g] ?? 0) / 100) * usableH;
+              if (h > 0.5) {
+                segs.push({ grade: g, top: bottom - h, h });
+                bottom -= h + GAP;
+              }
+            }
 
-            const juniorTop = yBottom - juniorH;
-            const middleBottom = juniorTop - GAP;
-            const middleTop = middleBottom - middleH;
-            const seniorBottom = middleTop - GAP;
-            const seniorTop = seniorBottom - seniorH;
-
-            const segLabel = (pct: number, y: number, h: number, grade: (typeof ORDER)[number]) =>
+            const segLabel = (pct: number, y: number, h: number) =>
               pct >= 15 && h > 1 ? (
                 <text
                   x={cx}
@@ -168,38 +170,22 @@ export default function WeeklyGradesChart({ weeks, gateDate, gateLabel = "анн
 
             return (
               <g key={w.weekStart}>
-                {/* junior — низ, без скругления */}
-                {juniorH > 0.5 && (
-                  <rect x={xL} y={juniorTop} width={barW} height={juniorH} fill={COLOR.junior} />
-                )}
-                {/* middle — середина, без скругления */}
-                {middleH > 0.5 && (
-                  <rect x={xL} y={middleTop} width={barW} height={middleH} fill={COLOR.middle} />
-                )}
-                {/* senior — верх, скругление 4px только сверху */}
-                {seniorH > 0.5 && (
-                  <path
-                    d={`M ${xL},${seniorBottom} L ${xL},${seniorTop + RADIUS} Q ${xL},${seniorTop} ${xL + RADIUS},${seniorTop} L ${xL + barW - RADIUS},${seniorTop} Q ${xL + barW},${seniorTop} ${xL + barW},${seniorTop + RADIUS} L ${xL + barW},${seniorBottom} Z`}
-                    fill={COLOR.senior}
-                  />
-                )}
-                {/* если senior отсутствует, а middle — верхний сегмент, скруглим его вместо этого */}
-                {seniorH <= 0.5 && middleH > 0.5 && (
-                  <path
-                    d={`M ${xL},${middleBottom} L ${xL},${middleTop + RADIUS} Q ${xL},${middleTop} ${xL + RADIUS},${middleTop} L ${xL + barW - RADIUS},${middleTop} Q ${xL + barW},${middleTop} ${xL + barW},${middleTop + RADIUS} L ${xL + barW},${middleBottom} Z`}
-                    fill={COLOR.middle}
-                  />
-                )}
-                {seniorH <= 0.5 && middleH <= 0.5 && juniorH > 0.5 && (
-                  <path
-                    d={`M ${xL},${yBottom} L ${xL},${juniorTop + RADIUS} Q ${xL},${juniorTop} ${xL + RADIUS},${juniorTop} L ${xL + barW - RADIUS},${juniorTop} Q ${xL + barW},${juniorTop} ${xL + barW},${juniorTop + RADIUS} L ${xL + barW},${yBottom} Z`}
-                    fill={COLOR.junior}
-                  />
+                {segs.map((s, si) =>
+                  si === segs.length - 1 ? (
+                    /* верхний сегмент — скругление 4px только сверху */
+                    <path
+                      key={s.grade}
+                      d={`M ${xL},${s.top + s.h} L ${xL},${s.top + RADIUS} Q ${xL},${s.top} ${xL + RADIUS},${s.top} L ${xL + barW - RADIUS},${s.top} Q ${xL + barW},${s.top} ${xL + barW},${s.top + RADIUS} L ${xL + barW},${s.top + s.h} Z`}
+                      fill={COLOR[s.grade]}
+                    />
+                  ) : (
+                    <rect key={s.grade} x={xL} y={s.top} width={barW} height={s.h} fill={COLOR[s.grade]} />
+                  )
                 )}
 
-                {segLabel(w.pct.junior, juniorTop, juniorH, "junior")}
-                {segLabel(w.pct.middle, middleTop, middleH, "middle")}
-                {segLabel(w.pct.senior, seniorTop, seniorH, "senior")}
+                {segs.map((s) => (
+                  <g key={`l-${s.grade}`}>{segLabel(w.pct[s.grade] ?? 0, s.top, s.h)}</g>
+                ))}
 
                 {/* подпись под столбиком: неделя + абсолют io */}
                 <text x={cx} y={yBottom + 16} fontSize={10} fill="#a3a3a3" textAnchor="middle">
@@ -259,15 +245,18 @@ export default function WeeklyGradesChart({ weeks, gateDate, gateLabel = "анн
           >
             <p className="mb-1 text-xs font-semibold text-neutral-600">неделя {weekShortLabel(hw.weekStart)}</p>
             <div className="flex flex-col gap-0.5 text-xs">
-              {[...ORDER].reverse().map((g) => (
-                <span key={g} className="flex items-center gap-1.5">
-                  <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLOR[g] }} />
-                  <span className="text-neutral-500">{LABEL[g]}</span>
-                  <span className="ml-auto font-mono font-semibold text-neutral-700">
-                    {hw.io[g].toLocaleString("ru-RU")} io · {Math.round(hw.pct[g])}%
+              {[...ORDER]
+                .reverse()
+                .filter((g) => g !== "unknown" || (hw.io.unknown ?? 0) > 0)
+                .map((g) => (
+                  <span key={g} className="flex items-center gap-1.5">
+                    <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLOR[g] }} />
+                    <span className="text-neutral-500">{LABEL[g]}</span>
+                    <span className="ml-auto font-mono font-semibold text-neutral-700">
+                      {(hw.io[g] ?? 0).toLocaleString("ru-RU")} io · {Math.round(hw.pct[g] ?? 0)}%
+                    </span>
                   </span>
-                </span>
-              ))}
+                ))}
               <span className="mt-0.5 text-neutral-400">
                 {hw.totalIo.toLocaleString("ru-RU")} io всего · {hw.count} {pluralTasks(hw.count)}
               </span>
@@ -290,6 +279,12 @@ export default function WeeklyGradesChart({ weeks, gateDate, gateLabel = "анн
           <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLOR.junior }} />
           junior
         </span>
+        {weeks.some((w) => (w.io.unknown ?? 0) > 0) && (
+          <span className="flex items-center gap-1" title="модель вне каталога model-grades.json">
+            <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: COLOR.unknown }} />
+            unknown
+          </span>
+        )}
         <span className="ml-auto text-neutral-400">
           {n} {n === 1 ? "неделя" : n < 5 ? "недели" : "недель"} с закрытыми измеренными задачами
         </span>

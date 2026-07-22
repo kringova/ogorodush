@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import { cache } from "react";
 import matter from "gray-matter";
 import { IDEAL_DAYS_PER_PERSON_WEEK, TICKET_PREFIX } from "./config";
+import { setModelGradesCatalog } from "./grade";
 import { mondayOf, addDaysIso, weekRangeLabel } from "./weeks";
 
 /**
@@ -16,6 +17,17 @@ import { mondayOf, addDaysIso, weekRangeLabel } from "./weeks";
  * даже для страниц/роутов, которые в рантайме ничего не прочитают.
  */
 export const VAULT_PATH = process.env.VAULT_PATH || process.cwd();
+
+// Каталог модель→грейд — единственный источник scripts/model-grades.json (#490).
+// Не читается → каталог пуст → все модели «unknown» на графиках: рассинхрон
+// виден сразу, не молчит.
+try {
+  setModelGradesCatalog(
+    JSON.parse(fs.readFileSync(path.join(VAULT_PATH, "scripts", "model-grades.json"), "utf-8"))
+  );
+} catch {
+  // пустой каталог — осознанный громкий фолбэк
+}
 
 let vaultPathChecked = false;
 

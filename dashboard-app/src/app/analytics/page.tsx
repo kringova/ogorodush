@@ -179,9 +179,15 @@ export default async function AnalyticsPage({
 
   const projectsWithMeasured = Object.keys(costByProjectAndGrade);
 
+  // unknown-колонка — только когда есть токены моделей вне каталога (#490)
+  const tiersShown: string[] = [
+    ...TIERS,
+    ...(projectsWithMeasured.some((p) => costByProjectAndGrade[p].unknown) ? ["unknown"] : []),
+  ];
+
   const allCosts: number[] = [];
   projectsWithMeasured.forEach((project) => {
-    TIERS.forEach((grade) => {
+    tiersShown.forEach((grade) => {
       const data = costByProjectAndGrade[project][grade];
       if (data) allCosts.push(Math.round(data.io / data.sp));
     });
@@ -315,7 +321,7 @@ export default async function AnalyticsPage({
                   <thead>
                     <tr className="text-left text-xs uppercase tracking-wide text-neutral-400">
                       <th className="pb-2 font-medium">Проект</th>
-                      {TIERS.map((grade) => (
+                      {tiersShown.map((grade) => (
                         <th key={grade} className="pb-2 text-right font-medium">
                           {grade}
                         </th>
@@ -326,7 +332,7 @@ export default async function AnalyticsPage({
                     {projectsWithMeasured.sort().map((project) => (
                       <tr key={project} className="border-t border-neutral-100">
                         <td className="py-2 pr-4 font-medium text-neutral-700">{project}</td>
-                        {TIERS.map((grade) => {
+                        {tiersShown.map((grade) => {
                           const data = costByProjectAndGrade[project][grade];
                           const cost = data ? Math.round(data.io / data.sp) : null;
                           return (

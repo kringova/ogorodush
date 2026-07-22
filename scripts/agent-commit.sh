@@ -26,7 +26,17 @@
 
 set -eo pipefail
 
-AGENT_AUTHOR="${AGENT_AUTHOR:-Claude Opus 4.8 (1M context) <noreply@anthropic.com>}"
+HERE="$(cd "$(dirname "$0")" && pwd)"
+
+# --- Личность модели ---
+# Порядок: env AGENT_AUTHOR → адаптер scripts/agent-author.py (определяет модель
+# текущей сессии из её артефактов, у Claude Code — из транскрипта) → нейтральный
+# фолбэк без версии. Захардкоженного имени конкретной модели здесь нет намеренно:
+# оно молча устаревает при каждой смене модели (инцидент 2026-07-22, #490).
+if [ -z "$AGENT_AUTHOR" ] && [ -f "$HERE/agent-author.py" ]; then
+  AGENT_AUTHOR="$(python3 "$HERE/agent-author.py" 2>/dev/null || true)"
+fi
+AGENT_AUTHOR="${AGENT_AUTHOR:-Claude <noreply@anthropic.com>}"
 
 # --- Личность человека ---
 if [ -n "$OGOROD_HUMAN" ]; then

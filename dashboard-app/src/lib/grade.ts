@@ -1,44 +1,68 @@
 /**
  * Грейды моделей — общий хелпер.
- * Зеркало grade_of() в scripts/tiering-snapshot.py (vault).
- * Источник истины один: меняется адаптер → правим там и тут.
+ *
+ * Каталог модель→грейд НЕ захардкожен: единственный источник —
+ * scripts/model-grades.json в vault, его загружает серверный код (vault.ts →
+ * setModelGradesCatalog) при старте. Этот модуль остаётся клиент-безопасным
+ * (без fs) — клиентские чарты импортируют отсюда только типы.
+ *
+ * Модель вне каталога = грейд "unknown": показывается на графиках отдельной
+ * полосой, НЕ выбрасывается. Пустой/непрочитанный каталог → всё unknown —
+ * рассинхрон виден на дашборде сразу, а не молчит (#490).
  */
 
 import type { Task } from "./vault";
 import { mondayOf } from "./weeks";
 
-export function gradeOfModel(model: string): "junior" | "middle" | "senior" | "other" {
-  if (model.includes("haiku")) return "junior";
-  if (model.includes("sonnet")) return "middle";
-  if (model.includes("opus")) return "senior";
-  return "other";
+export type Grade = "junior" | "middle" | "senior";
+export type GradeU = Grade | "unknown";
+
+const GRADES: readonly Grade[] = ["junior", "middle", "senior"];
+const ALL: readonly GradeU[] = ["junior", "middle", "senior", "unknown"];
+
+let catalog: Record<Grade, string[]> = { junior: [], middle: [], senior: [] };
+
+/** Инициализация каталога из model-grades.json — зовёт серверный vault.ts. */
+export function setModelGradesCatalog(c: Partial<Record<Grade, string[]>>): void {
+  catalog = {
+    junior: (c.junior ?? []).map((s) => s.toLowerCase()),
+    middle: (c.middle ?? []).map((s) => s.toLowerCase()),
+    senior: (c.senior ?? []).map((s) => s.toLowerCase()),
+  };
+}
+
+export function gradeOfModel(model: string): GradeU {
+  const id = model.toLowerCase();
+  for (const g of GRADES) {
+    if (catalog[g].some((s) => id.includes(s))) return g;
+  }
+  return "unknown";
+}
+
+/** io-токены по грейдам из строки cost_by_model ("model=io/cache; ..."). */
+function ioByGrade(costByModel: string): Record<GradeU, number> {
+  const io: Record<GradeU, number> = { junior: 0, middle: 0, senior: 0, unknown: 0 };
+  for (const pair of costByModel.split(";")) {
+    const [modelPart, tokenPart] = pair.split("=");
+    if (!modelPart || !tokenPart) continue;
+    const grade = gradeOfModel(modelPart.trim());
+    const ioNum = parseInt((tokenPart.split("/")[0] || "0").trim(), 10);
+    io[grade] = (io[grade] || 0) + ioNum;
+  }
+  return io;
 }
 
 /**
  * Доминирующий грейд по io-токенам из строки cost_by_model.
- * Формат: "model=io/cache; ..."
- * Возвращает грейд с максимальным суммарным io, или null если нет данных.
+ * Возвращает грейд с максимальным суммарным io ("unknown", если доминирует
+ * модель вне каталога), или null если нет данных.
  */
-export function actualGradeFromCostByModel(
-  costByModel: string
-): "junior" | "middle" | "senior" | null {
+export function actualGradeFromCostByModel(costByModel: string): GradeU | null {
   if (!costByModel || !costByModel.trim()) return null;
-  const io: Record<string, number> = { junior: 0, middle: 0, senior: 0 };
-  for (const pair of costByModel.split(";")) {
-    const [modelPart, tokenPart] = pair.split("=");
-    if (!modelPart || !tokenPart) continue;
-    const model = modelPart.trim();
-    const grade = gradeOfModel(model);
-    if (grade === "other") continue;
-    const ioNum = parseInt((tokenPart.split("/")[0] || "0").trim(), 10);
-    io[grade] = (io[grade] || 0) + ioNum;
-  }
-  const best = (["senior", "middle", "junior"] as const).find((g) => io[g] > 0);
-  if (!best) return null;
-  // грейд с макс io
-  let maxGrade: "junior" | "middle" | "senior" = best;
-  let maxIo = io[best];
-  for (const g of ["junior", "middle", "senior"] as const) {
+  const io = ioByGrade(costByModel);
+  let maxGrade: GradeU | null = null;
+  let maxIo = 0;
+  for (const g of ALL) {
     if (io[g] > maxIo) {
       maxIo = io[g];
       maxGrade = g;
@@ -69,6 +93,7 @@ export interface GradeSharePoint {
   seniorPct: number | null;
   middlePct: number | null;
   juniorPct: number | null;
+  unknownPct: number | null;
 }
 
 export interface GradeShareDayPoint {
@@ -76,6 +101,7 @@ export interface GradeShareDayPoint {
   seniorPct: number | null;
   middlePct: number | null;
   juniorPct: number | null;
+  unknownPct: number | null;
   count: number;         // кол-во задач в кластере
 }
 
@@ -96,36 +122,30 @@ export function gradeShareByDay(
   );
 
   // Сгруппировать по дню
-  const byDay = new Map<string, { io: Record<"junior" | "middle" | "senior", number>; count: number }>();
+  const byDay = new Map<string, { io: Record<GradeU, number>; count: number }>();
   for (const t of measured) {
     const day = dateOf(t);
     if (!day) continue; // без стабильной даты завершения — не кластеризуем (не пачкаем ось)
     if (!byDay.has(day)) {
-      byDay.set(day, { io: { junior: 0, middle: 0, senior: 0 }, count: 0 });
+      byDay.set(day, { io: { junior: 0, middle: 0, senior: 0, unknown: 0 }, count: 0 });
     }
     const bucket = byDay.get(day)!;
     bucket.count += 1;
-    for (const pair of t.costByModel.split(";")) {
-      const [modelPart, tokenPart] = pair.split("=");
-      if (!modelPart || !tokenPart) continue;
-      const grade = gradeOfModel(modelPart.trim());
-      if (grade === "other") continue;
-      const ioNum = parseInt((tokenPart.split("/")[0] || "0").trim(), 10);
-      bucket.io[grade] += ioNum;
-    }
+    const io = ioByGrade(t.costByModel);
+    for (const g of ALL) bucket.io[g] += io[g];
   }
 
   // Построить точки, отсортировать по дате
   const points: GradeShareDayPoint[] = [];
   for (const [date, { io, count }] of byDay) {
-    const totalIo = io.junior + io.middle + io.senior;
-    const pct = (g: "junior" | "middle" | "senior") =>
-      totalIo > 0 ? (100 * io[g]) / totalIo : null;
+    const totalIo = ALL.reduce((s, g) => s + io[g], 0);
+    const pct = (g: GradeU) => (totalIo > 0 ? (100 * io[g]) / totalIo : null);
     points.push({
       date,
       seniorPct: pct("senior"),
       middlePct: pct("middle"),
       juniorPct: pct("junior"),
+      unknownPct: pct("unknown"),
       count,
     });
   }
@@ -138,9 +158,7 @@ export function gradeShareByDay(
  * Доля грейдов по задачам.
  * Каждая точка — одна измеренная задача (costIoTokens > 0 && costByModel).
  * Сортировка: по (updated asc, id asc).
- * Для каждой задачи считается io по junior/middle/senior;
- * grade "other" игнорируется при расчёте процентов.
- * Возвращает pct от суммарного io junior+middle+senior.
+ * Возвращает pct от суммарного io всех грейдов, включая unknown.
  */
 export function gradeShareByTask(tasks: Task[]): GradeSharePoint[] {
   const measured = tasks.filter(
@@ -154,28 +172,16 @@ export function gradeShareByTask(tasks: Task[]): GradeSharePoint[] {
   });
 
   return measured.map((t) => {
-    const io: Record<"junior" | "middle" | "senior", number> = {
-      junior: 0,
-      middle: 0,
-      senior: 0,
-    };
-    for (const pair of t.costByModel.split(";")) {
-      const [modelPart, tokenPart] = pair.split("=");
-      if (!modelPart || !tokenPart) continue;
-      const grade = gradeOfModel(modelPart.trim());
-      if (grade === "other") continue;
-      const ioNum = parseInt((tokenPart.split("/")[0] || "0").trim(), 10);
-      io[grade] += ioNum;
-    }
-    const totalIo = io.junior + io.middle + io.senior;
-    const pct = (g: "junior" | "middle" | "senior") =>
-      totalIo > 0 ? (100 * io[g]) / totalIo : null;
+    const io = ioByGrade(t.costByModel);
+    const totalIo = ALL.reduce((s, g) => s + io[g], 0);
+    const pct = (g: GradeU) => (totalIo > 0 ? (100 * io[g]) / totalIo : null);
     return {
       date: t.updated,
       key: t.key,
       seniorPct: pct("senior"),
       middlePct: pct("middle"),
       juniorPct: pct("junior"),
+      unknownPct: pct("unknown"),
     };
   });
 }
@@ -183,9 +189,9 @@ export function gradeShareByTask(tasks: Task[]): GradeSharePoint[] {
 export interface WeeklyGradePoint {
   /** Понедельник ISO-недели закрытия (YYYY-MM-DD). */
   weekStart: string;
-  io: Record<"junior" | "middle" | "senior", number>;
+  io: Record<GradeU, number>;
   totalIo: number;
-  pct: Record<"junior" | "middle" | "senior", number>;
+  pct: Record<GradeU, number>;
   /** сколько измеренных задач закрыто на этой неделе */
   count: number;
 }
@@ -203,10 +209,7 @@ export function weeklyGradeShare(
     (t) => t.costIoTokens > 0 && t.costByModel && t.costByModel.trim()
   );
 
-  const buckets = new Map<
-    string,
-    { io: Record<"junior" | "middle" | "senior", number>; count: number }
-  >();
+  const buckets = new Map<string, { io: Record<GradeU, number>; count: number }>();
   for (const t of measured) {
     const iso = isoOf(t);
     const date = iso ? iso.slice(0, 10) : "";
@@ -214,31 +217,29 @@ export function weeklyGradeShare(
     const week = mondayOf(date);
     let b = buckets.get(week);
     if (!b) {
-      b = { io: { junior: 0, middle: 0, senior: 0 }, count: 0 };
+      b = { io: { junior: 0, middle: 0, senior: 0, unknown: 0 }, count: 0 };
       buckets.set(week, b);
     }
     b.count += 1;
-    for (const pair of t.costByModel.split(";")) {
-      const [modelPart, tokenPart] = pair.split("=");
-      if (!modelPart || !tokenPart) continue;
-      const grade = gradeOfModel(modelPart.trim());
-      if (grade === "other") continue;
-      const ioNum = parseInt((tokenPart.split("/")[0] || "0").trim(), 10);
-      b.io[grade] += ioNum;
-    }
+    const io = ioByGrade(t.costByModel);
+    for (const g of ALL) b.io[g] += io[g];
   }
 
   const weeks = [...buckets.keys()].sort();
   return weeks.map((weekStart) => {
     const b = buckets.get(weekStart)!;
-    const totalIo = b.io.junior + b.io.middle + b.io.senior;
-    const pctOf = (g: "junior" | "middle" | "senior") =>
-      totalIo > 0 ? (100 * b.io[g]) / totalIo : 0;
+    const totalIo = ALL.reduce((s, g) => s + b.io[g], 0);
+    const pctOf = (g: GradeU) => (totalIo > 0 ? (100 * b.io[g]) / totalIo : 0);
     return {
       weekStart,
       io: b.io,
       totalIo,
-      pct: { junior: pctOf("junior"), middle: pctOf("middle"), senior: pctOf("senior") },
+      pct: {
+        junior: pctOf("junior"),
+        middle: pctOf("middle"),
+        senior: pctOf("senior"),
+        unknown: pctOf("unknown"),
+      },
       count: b.count,
     };
   });

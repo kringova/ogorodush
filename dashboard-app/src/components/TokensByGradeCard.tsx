@@ -13,6 +13,7 @@ const TIER_COLOR: Record<string, string> = {
   junior: "bg-lime-400",
   middle: "bg-sky-400",
   senior: "bg-violet-400",
+  unknown: "bg-neutral-400",
 };
 
 type Bucket = { io: number; cache: number };
@@ -47,7 +48,7 @@ export default function TokensByGradeCard({ today, allTime }: Props) {
             Токены по грейдам и моделям
           </h2>
           <p className="mt-1 text-xs text-neutral-400">
-            кто реально жёг токены — грейд по фактической модели (haiku→junior, sonnet→middle, opus→senior)
+            кто реально жёг токены — грейд по фактической модели (каталог scripts/model-grades.json; вне каталога → unknown)
           </p>
         </div>
         {/* Переключатель */}
@@ -82,7 +83,8 @@ export default function TokensByGradeCard({ today, allTime }: Props) {
           </p>
         ) : (
           <div className="flex flex-col gap-5">
-            {TIERS_DESC.map((grade) => {
+            {/* unknown — только когда есть токены вне каталога: громкая строка, не постоянный шум */}
+            {[...((grades.unknown?.io ?? 0) > 0 ? (["unknown"] as const) : []), ...TIERS_DESC].map((grade) => {
               const g = grades[grade];
               const io = g?.io ?? 0;
               const pct = totalIo > 0 ? (io / totalIo) * 100 : 0;

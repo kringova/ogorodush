@@ -11,6 +11,8 @@ const GRADE_CONFIG: Record<
   junior: { emoji: "🐣", bg: "bg-lime-100", label: "junior" },
   middle: { emoji: "🦆", bg: "bg-sky-100", label: "middle" },
   senior: { emoji: "🦅", bg: "bg-violet-100", label: "senior" },
+  // модель вне каталога model-grades.json (#490) — показываем, не прячем
+  unknown: { emoji: "❓", bg: "bg-neutral-100", label: "unknown" },
 };
 
 const SIZE: Record<string, string> = {
